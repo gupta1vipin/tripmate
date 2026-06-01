@@ -50,10 +50,6 @@
   input:focus,textarea:focus{border-color:var(--accent)}
   input::placeholder,textarea::placeholder{color:var(--muted)}
 
-  /* OTP inputs */
-  .otp-row{display:flex;gap:10px;justify-content:center;margin:16px 0}
-  .otp-input{width:48px;height:56px;text-align:center;font-size:22px;font-weight:700;font-family:'Syne',sans-serif;padding:0;border-radius:12px}
-
   /* HEADER */
   .header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
   .avatar-btn{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;font-family:'Syne',sans-serif;font-weight:700;color:#fff}
@@ -181,40 +177,24 @@
 </head>
 <body>
 
-<!-- PHONE AUTH SCREEN -->
+<!-- SIMPLE LOGIN SCREEN -->
 <div id="phoneAuth" class="screen active">
   <div class="auth-icon">📱</div>
   <div class="auth-title" style="font-family:'Syne',sans-serif">Welcome to <span style="color:var(--accent)">TripMate</span></div>
-  <div class="auth-sub" id="authSub">Enter your phone number to get started. We'll send you a one-time code.</div>
-
-  <!-- Step 1: Phone entry -->
-  <div id="authStep1" style="width:100%">
+  <div class="auth-sub">Enter your name and phone number. Your trips will always be linked to this number.</div>
+  <div style="width:100%">
     <div class="form-group" style="text-align:left">
       <label>Your Name</label>
-      <input type="text" id="authName" placeholder="e.g. Rahul" maxlength="30">
+      <input type="text" id="authName" placeholder="e.g. Rahul" maxlength="30" onkeydown="if(event.key==='Enter')document.getElementById('authPhone').focus()">
     </div>
     <div class="form-group" style="text-align:left">
       <label>Phone Number</label>
-      <input type="tel" id="authPhone" placeholder="+91 98765 43210">
+      <input type="tel" id="authPhone" placeholder="e.g. 9876543210" onkeydown="if(event.key==='Enter')simpleLogin()">
     </div>
-    <div id="recaptcha-container" style="margin:12px 0;display:flex;justify-content:center"></div>
-    <button class="btn btn-primary" id="sendOtpBtn" onclick="sendOTP()">Send OTP via SMS</button>
-    <div style="margin-top:12px;font-size:12px;color:var(--muted)">Free SMS via Firebase. Your number is only used for login.</div>
-  </div>
-
-  <!-- Step 2: OTP entry -->
-  <div id="authStep2" style="width:100%;display:none">
-    <div style="font-size:14px;color:var(--muted);margin-bottom:20px" id="otpSentMsg"></div>
-    <div class="otp-row">
-      <input type="tel" class="otp-input" maxlength="1" id="o1" oninput="otpNav(this,'','o2')">
-      <input type="tel" class="otp-input" maxlength="1" id="o2" oninput="otpNav(this,'o1','o3')">
-      <input type="tel" class="otp-input" maxlength="1" id="o3" oninput="otpNav(this,'o2','o4')">
-      <input type="tel" class="otp-input" maxlength="1" id="o4" oninput="otpNav(this,'o3','o5')">
-      <input type="tel" class="otp-input" maxlength="1" id="o5" oninput="otpNav(this,'o4','o6')">
-      <input type="tel" class="otp-input" maxlength="1" id="o6" oninput="otpNav(this,'o5','')">
+    <button class="btn btn-primary" id="loginBtn" onclick="simpleLogin()" style="margin-top:8px">Continue</button>
+    <div style="margin-top:14px;font-size:12px;color:var(--muted);line-height:1.6;text-align:center">
+      Your phone number is your unique ID.<br>All your trips are tied to it across devices.
     </div>
-    <button class="btn btn-green" id="verifyOtpBtn" onclick="verifyOTP()" style="margin-top:8px">Verify & Continue</button>
-    <button class="btn btn-ghost" onclick="resetAuth()" style="margin-top:8px">Change number</button>
   </div>
 </div>
 
@@ -444,10 +424,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, collection, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, arrayUnion, serverTimestamp, query, where, getDocs }
+import { getFirestore, doc, collection, setDoc, getDoc, updateDoc, onSnapshot, arrayUnion, serverTimestamp, query, where, getDocs }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getMessaging, getToken, onMessage }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
@@ -457,30 +435,31 @@ const firebaseConfig = {
   projectId: "tripmate-6bad3",
   storageBucket: "tripmate-6bad3.firebasestorage.app",
   messagingSenderId: "139737662997",
-  appId: "1:139737662997:web:7e04a256ed0e4e6706301c",
-  measurementId: "G-DMRK6MLB2K"
+  appId: "1:139737662997:web:7e04a256ed0e4e6706301c"
 };
 const VAPID_KEY = "BCuobuL_odG2eCa9025e1MIDfoJ52mMwaNJdMTHyEG4Bu96YCAW3Ee6OpKPYmnVDskJVW2EYJxagQUxTQ3PkatQ";
 
 const firebaseApp = initializeApp(firebaseConfig);
-const db   = getFirestore(firebaseApp);
-const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
 let messaging = null;
 try { messaging = getMessaging(firebaseApp); } catch(e) {}
 
-// ── STATE ──
+// STATE
 let currentGroup = null;
-let currentUser  = { name:'', phone:'', uid:'' };
+let currentUser  = { name:'', phone:'' };
 let unsubscribe  = null;
 let fcmToken     = null;
-let confirmationResult = null;
 let deferredInstallPrompt = null;
 
-// ── HELPERS ──
+// HELPERS
 const generateId  = () => Math.random().toString(36).slice(2,8).toUpperCase();
 const initials    = n  => (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const EMOJIS      = ['🏔️','🏖️','🌏','🗺️','✈️','🚗','🏕️','🌄','🎒','🛤️'];
 const randomEmoji = () => EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
+
+const USER_KEY = 'tripmate_user_v4';
+function saveUser(u) { localStorage.setItem(USER_KEY, JSON.stringify(u)); }
+function loadUser()  { try { return JSON.parse(localStorage.getItem(USER_KEY)||'null'); } catch { return null; } }
 
 function showToastMsg(msg) {
   const t = document.getElementById('toast');
@@ -492,7 +471,7 @@ window.showToast = showToastMsg;
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active'); s.style.display='none'; });
   const s = document.getElementById(id);
-  s.style.display = 'flex'; s.classList.add('active');
+  s.style.display='flex'; s.classList.add('active');
 }
 
 window.openModal  = id => document.getElementById(id).classList.add('open');
@@ -501,7 +480,7 @@ document.querySelectorAll('.modal-overlay').forEach(o =>
   o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); })
 );
 
-// ── PWA INSTALL ──
+// PWA INSTALL
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredInstallPrompt = e;
@@ -509,7 +488,7 @@ window.addEventListener('beforeinstallprompt', e => {
 });
 window.installApp = async function() {
   if(!deferredInstallPrompt) {
-    showToastMsg('Open in Chrome and use "Add to Home Screen" from the menu');
+    showToastMsg('Open in Chrome → tap menu → Add to Home Screen');
     return;
   }
   deferredInstallPrompt.prompt();
@@ -521,137 +500,76 @@ window.installApp = async function() {
   deferredInstallPrompt = null;
 };
 
-// ── OTP NAVIGATION ──
-window.otpNav = function(el, prevId, nextId) {
-  if(el.value && nextId) document.getElementById(nextId).focus();
-  if(!el.value && prevId) document.getElementById(prevId).focus();
-};
-
-// ── PHONE AUTH ──
-let recaptchaVerifier = null;
-
-function setupRecaptcha() {
-  if(recaptchaVerifier) return;
-  try {
-    recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'normal',
-      callback: () => { document.getElementById('sendOtpBtn').disabled = false; },
-      'expired-callback': () => { showToastMsg('Captcha expired, please retry'); }
-    });
-    recaptchaVerifier.render();
-  } catch(e) { console.log('Recaptcha error:', e); }
-}
-
-window.sendOTP = async function() {
+// SIMPLE LOGIN (no OTP, phone = unique ID)
+window.simpleLogin = async function() {
   const name  = document.getElementById('authName').value.trim();
-  const phone = document.getElementById('authPhone').value.trim();
+  let   phone = document.getElementById('authPhone').value.trim();
+
   if(!name)  { showToastMsg('Please enter your name'); return; }
   if(!phone) { showToastMsg('Please enter your phone number'); return; }
 
-  const btn = document.getElementById('sendOtpBtn');
-  btn.textContent = 'Sending...'; btn.disabled = true;
+  // Normalise: strip non-digits then ensure +91 prefix for India
+  const digits = phone.replace(/\D/g, '');
+  if(digits.length === 10)      phone = '+91' + digits;
+  else if(digits.length === 12) phone = '+' + digits;
+  else if(digits.length === 11 && digits.startsWith('0')) phone = '+91' + digits.slice(1);
+  else phone = '+' + digits;
 
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Saving...'; btn.disabled = true;
+
+  currentUser = { name, phone };
+  saveUser(currentUser);
+
+  // Upsert user profile in Firestore
   try {
-    confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifier);
-    currentUser.name  = name;
-    currentUser.phone = phone;
-    document.getElementById('otpSentMsg').textContent = 'OTP sent to ' + phone;
-    document.getElementById('authStep1').style.display = 'none';
-    document.getElementById('authStep2').style.display = 'block';
-    document.getElementById('o1').focus();
-  } catch(e) {
-    console.error('OTP send error:', e);
-    showToastMsg('Error sending OTP: ' + (e.message||'Check number format (+91...)'));
-    btn.textContent = 'Send OTP via SMS'; btn.disabled = false;
-    if(recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
-    setupRecaptcha();
-  }
-};
-
-window.verifyOTP = async function() {
-  const code = ['o1','o2','o3','o4','o5','o6'].map(id => document.getElementById(id).value).join('');
-  if(code.length < 6) { showToastMsg('Enter all 6 digits'); return; }
-
-  const btn = document.getElementById('verifyOtpBtn');
-  btn.textContent = 'Verifying...'; btn.disabled = true;
-
-  try {
-    const result = await confirmationResult.confirm(code);
-    currentUser.uid   = result.user.uid;
-    currentUser.phone = result.user.phoneNumber || currentUser.phone;
-    await saveUserProfile();
-    await loadUserAndGroups();
-  } catch(e) {
-    console.error('OTP verify error:', e);
-    showToastMsg('Invalid OTP, please try again');
-    btn.textContent = 'Verify & Continue'; btn.disabled = false;
-  }
-};
-
-window.resetAuth = function() {
-  document.getElementById('authStep1').style.display = 'block';
-  document.getElementById('authStep2').style.display = 'none';
-  ['o1','o2','o3','o4','o5','o6'].forEach(id => document.getElementById(id).value = '');
-  confirmationResult = null;
-  if(recaptchaVerifier) { recaptchaVerifier.clear(); recaptchaVerifier = null; }
-  setupRecaptcha();
-};
-
-async function saveUserProfile() {
-  try {
-    await setDoc(doc(db, 'users', currentUser.phone), {
-      name: currentUser.name,
-      phone: currentUser.phone,
-      uid: currentUser.uid,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    await setDoc(doc(db, 'users', phone), { name, phone, updatedAt: serverTimestamp() }, { merge: true });
   } catch(e) { console.log('Profile save error:', e); }
-}
 
-// ── AUTH STATE OBSERVER ──
-onAuthStateChanged(auth, async user => {
-  if(user) {
-    currentUser.uid   = user.uid;
-    currentUser.phone = user.phoneNumber || currentUser.phone;
-    // Try to get name from Firestore
-    try {
-      const snap = await getDoc(doc(db, 'users', currentUser.phone));
-      if(snap.exists()) currentUser.name = snap.data().name || currentUser.name;
-    } catch(e) {}
-    await loadUserAndGroups();
-  } else {
-    // Not signed in — show auth screen
-    showScreen('phoneAuth');
-    setupRecaptcha();
-  }
-});
-
-window.signOutUser = async function() {
-  if(unsubscribe) { unsubscribe(); unsubscribe = null; }
-  await signOut(auth);
-  currentUser = { name:'', phone:'', uid:'' };
-  showScreen('phoneAuth');
-  setupRecaptcha();
+  btn.textContent = 'Continue'; btn.disabled = false;
+  await loadHomeScreen();
 };
 
-// ── LOAD USER + GROUPS ──
-async function loadUserAndGroups() {
-  document.getElementById('splashAvatar').textContent = initials(currentUser.name);
-  document.getElementById('userChip').textContent = currentUser.name || currentUser.phone;
-  document.getElementById('splashUserGreet').textContent = 'Hello, ' + (currentUser.name||'Traveller') + ' !';
+// SIGN OUT
+window.signOutUser = function() {
+  if(unsubscribe) { unsubscribe(); unsubscribe = null; }
+  localStorage.removeItem(USER_KEY);
+  currentUser = { name:'', phone:'' };
+  currentGroup = null;
+  showScreen('phoneAuth');
+  document.getElementById('authName').value = '';
+  document.getElementById('authPhone').value = '';
+};
 
-  // Check deep link first
+// LOAD HOME
+async function loadHomeScreen() {
+  document.getElementById('splashAvatar').textContent  = initials(currentUser.name);
+  document.getElementById('userChip').textContent      = currentUser.name;
+  document.getElementById('splashUserGreet').textContent = 'Hello, ' + currentUser.name + '!';
+
+  // Handle deep link
   const match = (location.hash+'').match(/join\/([A-Z0-9]{6})/i);
   if(match) {
-    showScreen('joinGroup');
     document.getElementById('joinCode').value = match[1].toUpperCase();
+    showScreen('joinGroup');
     return;
   }
   showScreen('splash');
   renderGroupsList();
 }
 
-// ── NAVIGATION ──
+// AUTO-LOGIN on page load
+(function init() {
+  const saved = loadUser();
+  if(saved && saved.name && saved.phone) {
+    currentUser = saved;
+    loadHomeScreen();
+  } else {
+    showScreen('phoneAuth');
+  }
+})();
+
+// NAVIGATION
 window.goBack = function(to) {
   if(unsubscribe) { unsubscribe(); unsubscribe = null; }
   showScreen(to);
@@ -660,16 +578,13 @@ window.goBack = function(to) {
 window.showCreateGroup = () => showScreen('createGroup');
 window.showJoinGroup   = () => showScreen('joinGroup');
 
-// ── GROUPS LIST (by phone number from Firestore) ──
+// GROUPS LIST — query by phone number
 async function renderGroupsList() {
   const el = document.getElementById('groupsList');
   if(!currentUser.phone) { el.innerHTML = ''; return; }
-
   el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading your trips...</div>';
-
   try {
-    // Query all groups where members array contains this phone number
-    const q = query(collection(db,'groups'), where('memberPhones', 'array-contains', currentUser.phone));
+    const q    = query(collection(db,'groups'), where('memberPhones','array-contains', currentUser.phone));
     const snap = await getDocs(q);
     const groups = snap.docs.map(d => ({ ...d.data(), id: d.id }));
 
@@ -688,26 +603,24 @@ async function renderGroupsList() {
       </div>
     `).join('');
   } catch(e) {
-    console.error('Groups load error:', e);
+    console.error(e);
     el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p class="empty-text">Could not load trips.<br>Check internet.</p></div>';
   }
 }
 
-// Remove trip from this user's view (doesn't delete for others)
 window.removeFromMyList = async function(groupId) {
-  if(!confirm('Remove this trip from your list? Others can still see it.')) return;
+  if(!confirm('Remove this trip from your list?')) return;
   try {
-    // Remove this phone from memberPhones so query won't return it
-    const ref = doc(db, 'groups', groupId);
+    const ref  = doc(db,'groups',groupId);
     const snap = await getDoc(ref);
     if(!snap.exists()) return;
-    const data = snap.data();
-    const newPhones = (data.memberPhones||[]).filter(p => p !== currentUser.phone);
+    const data       = snap.data();
+    const newPhones  = (data.memberPhones||[]).filter(p => p !== currentUser.phone);
     const newMembers = (data.members||[]).filter(m => m.phone !== currentUser.phone);
     await updateDoc(ref, { memberPhones: newPhones, members: newMembers });
     showToastMsg('Trip removed from your list');
     renderGroupsList();
-  } catch(e) { showToastMsg('Error removing trip'); console.error(e); }
+  } catch(e) { showToastMsg('Error removing trip'); }
 };
 
 window.openGroupById = async function(id) {
@@ -720,7 +633,7 @@ window.openGroupById = async function(id) {
   } catch(e) { showToastMsg('Error loading group'); console.error(e); }
 };
 
-// ── CREATE GROUP ──
+// CREATE GROUP
 window.addMemberInput = function() {
   const c = document.getElementById('memberInputs');
   const d = document.createElement('div');
@@ -737,22 +650,22 @@ window.createGroup = async function() {
   const btn = document.getElementById('createBtn');
   btn.textContent = 'Creating...'; btn.disabled = true;
 
-  const phones = [...document.querySelectorAll('.member-phone-input')].map(i=>i.value.trim()).filter(Boolean);
-  const names  = [...document.querySelectorAll('.member-name-input')].map(i=>i.value.trim());
-
-  // Always include current user
+  const phones  = [...document.querySelectorAll('.member-phone-input')].map(i=>i.value.trim()).filter(Boolean);
+  const names   = [...document.querySelectorAll('.member-name-input')].map(i=>i.value.trim());
   const members = [{ name:currentUser.name, phone:currentUser.phone, role:'admin', fcmToken:'' }];
   const memberPhones = [currentUser.phone];
 
   phones.forEach((ph,i) => {
-    if(ph) {
-      members.push({ name:names[i]||'Member', phone:ph, role:'member', fcmToken:'' });
-      if(!memberPhones.includes(ph)) memberPhones.push(ph);
+    const digits = ph.replace(/\D/g,'');
+    const normalized = digits.length===10 ? '+91'+digits : (ph.startsWith('+')?ph:'+'+digits);
+    if(normalized) {
+      members.push({ name:names[i]||'Member', phone:normalized, role:'member', fcmToken:'' });
+      if(!memberPhones.includes(normalized)) memberPhones.push(normalized);
     }
   });
 
   const groupId = generateId();
-  const group = { id:groupId, name, dates, emoji:randomEmoji(), members, memberPhones, checklist:[], itinerary:[], createdAt:Date.now() };
+  const group   = { id:groupId, name, dates, emoji:randomEmoji(), members, memberPhones, checklist:[], itinerary:[], createdAt:Date.now() };
 
   try {
     await setDoc(doc(db,'groups',groupId), group);
@@ -768,7 +681,7 @@ window.createGroup = async function() {
   }
 };
 
-// ── JOIN GROUP ──
+// JOIN GROUP
 window.joinGroup = async function() {
   const code = document.getElementById('joinCode').value.trim();
   if(!code) { showToastMsg('Please enter an invite code'); return; }
@@ -782,23 +695,21 @@ window.joinGroup = async function() {
     const snap = await getDoc(ref);
     if(!snap.exists()) { showToastMsg('Group not found. Check the link.'); return; }
 
-    const data = snap.data();
+    const data          = snap.data();
     const alreadyMember = (data.memberPhones||[]).includes(currentUser.phone);
-
     if(!alreadyMember) {
       await updateDoc(ref, {
-        members: arrayUnion({ name:currentUser.name, phone:currentUser.phone, role:'member', fcmToken:'' }),
+        members:      arrayUnion({ name:currentUser.name, phone:currentUser.phone, role:'member', fcmToken:'' }),
         memberPhones: arrayUnion(currentUser.phone)
       });
     }
-
     currentGroup = { ...data, id: groupId };
-    location.hash = ''; // clear deep link
+    location.hash = '';
     window.openGroupApp();
   } catch(e) { showToastMsg('Error joining. Check internet.'); console.error(e); }
 };
 
-// ── OPEN GROUP APP ──
+// OPEN GROUP APP
 window.openGroupApp = function() {
   closeModal('inviteModal');
   document.getElementById('appGroupName').textContent  = currentGroup.name;
@@ -807,7 +718,6 @@ window.openGroupApp = function() {
   document.getElementById('itinDates').textContent     = currentGroup.dates||'';
   const link = location.origin + location.pathname + '#join/' + currentGroup.id;
   document.getElementById('inviteLinkDisplay').textContent = link;
-
   switchTab('checklist', document.getElementById('tab-checklist'));
   showScreen('groupApp');
   checkNotifBanner();
@@ -815,12 +725,11 @@ window.openGroupApp = function() {
   renderMembers();
 };
 
-// ── LIVE SYNC ──
+// LIVE SYNC
 function setSynced(ok) {
   const d = document.getElementById('syncDot');
-  if(d) d.className = 'sync-dot' + (ok ? '' : ' offline');
+  if(d) d.className = 'sync-dot' + (ok?'':' offline');
 }
-
 function startLiveSync() {
   if(unsubscribe) unsubscribe();
   setSynced(false);
@@ -837,7 +746,7 @@ function startLiveSync() {
   );
 }
 
-// ── TABS ──
+// TABS
 window.switchTab = function(name, btn) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
@@ -845,43 +754,42 @@ window.switchTab = function(name, btn) {
   document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1)).style.display='flex';
 };
 
-// ── CHECKLIST ──
+// CHECKLIST
 function renderChecklist() {
   if(!currentGroup) return;
-  const items = currentGroup.checklist || [];
+  const items = currentGroup.checklist||[];
   const done  = items.filter(i=>i.done).length;
   const pct   = items.length ? Math.round(done/items.length*100) : 0;
-  document.getElementById('progressFill').style.width    = pct + '%';
-  document.getElementById('progressLabel').textContent   = done + ' of ' + items.length + ' sorted';
-  document.getElementById('progressPercent').textContent = pct + '%';
-
+  document.getElementById('progressFill').style.width    = pct+'%';
+  document.getElementById('progressLabel').textContent   = done+' of '+items.length+' sorted';
+  document.getElementById('progressPercent').textContent = pct+'%';
   const el = document.getElementById('checklistItems');
   if(!items.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎒</div><p class="empty-text">List is empty.<br>Add anything you need to bring!</p></div>';
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">🎒</div><p class="empty-text">List is empty.<br>Add anything you need to bring!</p></div>';
     return;
   }
-  el.innerHTML = items.map(item => `
+  el.innerHTML = items.map(item=>`
     <div class="checklist-item ${item.done?'done':''}" id="ci-${item.id}">
       <div class="check-circle" onclick="toggleItem('${item.id}')">${item.done?'✓':''}</div>
       <div class="check-text" onclick="toggleItem('${item.id}')">
         <div class="check-label">${item.label}</div>
-        ${item.done && item.by ? '<div class="check-who">by ' + item.by + '</div>' : ''}
+        ${item.done&&item.by?'<div class="check-who">by '+item.by+'</div>':''}
       </div>
-      ${item.qty ? '<div class="qty-badge">' + item.qty + '</div>' : ''}
-      <button onclick="deleteItem('${item.id}')" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px;flex-shrink:0;line-height:1">x</button>
+      ${item.qty?'<div class="qty-badge">'+item.qty+'</div>':''}
+      <button onclick="deleteItem('${item.id}')" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px;flex-shrink:0;line-height:1">×</button>
     </div>
   `).join('');
 }
 
 window.toggleItem = async function(id) {
-  const items = currentGroup.checklist || [];
+  const items = currentGroup.checklist||[];
   const item  = items.find(i=>i.id===id);
   if(!item) return;
   item.done = !item.done;
   item.by   = item.done ? (currentUser.name||'Someone') : '';
   try {
     await updateDoc(doc(db,'groups',currentGroup.id), { checklist: items });
-    if(item.done) showToastMsg('"' + item.label + '" done!');
+    if(item.done) showToastMsg('"'+item.label+'" done!');
   } catch(e) { showToastMsg('Sync error'); }
 };
 
@@ -897,29 +805,28 @@ window.addItem = async function() {
   const label    = input.value.trim();
   const qty      = qtyInput.value.trim();
   if(!label) { showToastMsg('Enter an item name'); return; }
-
   const items = [...(currentGroup.checklist||[]), { id:generateId(), label, qty, done:false, by:'', addedBy:currentUser.name }];
   try {
     await updateDoc(doc(db,'groups',currentGroup.id), { checklist: items });
-    input.value = ''; qtyInput.value = ''; input.focus();
-    showToastMsg('"' + label + '" added!');
+    input.value=''; qtyInput.value=''; input.focus();
+    showToastMsg('"'+label+'" added!');
   } catch(e) { showToastMsg('Sync error'); }
 };
 
-// ── ITINERARY ──
+// ITINERARY
 function renderItinerary() {
   const el   = document.getElementById('itineraryDays');
-  const itin = currentGroup.itinerary || [];
+  const itin = currentGroup.itinerary||[];
   if(!itin.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🗺️</div><p class="empty-text">No itinerary yet.<br>Tap "+ Add Day / Stop" to plan!</p></div>';
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">🗺️</div><p class="empty-text">No itinerary yet.<br>Tap "+ Add Day / Stop" to plan!</p></div>';
     return;
   }
   const days = {};
   itin.forEach(ev => { if(!days[ev.day]) days[ev.day]=[]; days[ev.day].push(ev); });
-  el.innerHTML = Object.entries(days).map(([day,events]) => `
+  el.innerHTML = Object.entries(days).map(([day,events])=>`
     <div class="day-block">
       <div class="day-label">${day}</div>
-      ${events.map((ev,i) => `
+      ${events.map((ev,i)=>`
         <div class="event-item">
           <div class="event-time-col">
             <div class="event-time">${ev.time||''}</div>
@@ -944,21 +851,20 @@ window.addItineraryEvent = async function() {
   const time     = document.getElementById('dayTime').value.trim();
   const note     = document.getElementById('dayNote').value.trim();
   if(!day||!activity) { showToastMsg('Enter day and activity'); return; }
-
   const itin = [...(currentGroup.itinerary||[]), { id:generateId(), day, activity, time, note }];
   try {
     await updateDoc(doc(db,'groups',currentGroup.id), { itinerary: itin });
     closeModal('addDayModal');
-    ['dayLabel','dayActivity','dayTime','dayNote'].forEach(id => document.getElementById(id).value='');
+    ['dayLabel','dayActivity','dayTime','dayNote'].forEach(id=>document.getElementById(id).value='');
     showToastMsg('Added to itinerary!');
   } catch(e) { showToastMsg('Sync error'); }
 };
 
-// ── MEMBERS ──
+// MEMBERS
 function renderMembers() {
   const el      = document.getElementById('membersList');
-  const members = currentGroup.members || [];
-  el.innerHTML = members.map(m => `
+  const members = currentGroup.members||[];
+  el.innerHTML  = members.map(m=>`
     <div class="member-row-full">
       <div class="member-avatar-lg">${initials(m.name)}</div>
       <div class="member-info">
@@ -974,86 +880,78 @@ window.addMember = async function() {
   const name  = document.getElementById('newMemberName').value.trim();
   const phone = document.getElementById('newMemberPhone').value.trim();
   if(!name) { showToastMsg('Enter a name'); return; }
+  const digits     = phone.replace(/\D/g,'');
+  const normalized = digits.length===10 ? '+91'+digits : (phone.startsWith('+')?phone:'+'+digits);
   try {
     await updateDoc(doc(db,'groups',currentGroup.id), {
-      members: arrayUnion({ name, phone, role:'member', fcmToken:'' }),
-      memberPhones: arrayUnion(phone)
+      members:      arrayUnion({ name, phone:normalized, role:'member', fcmToken:'' }),
+      memberPhones: arrayUnion(normalized)
     });
     closeModal('addMemberModal');
-    document.getElementById('newMemberName').value = '';
-    document.getElementById('newMemberPhone').value = '';
-    showToastMsg(name + ' added! Share the invite link.');
+    document.getElementById('newMemberName').value='';
+    document.getElementById('newMemberPhone').value='';
+    showToastMsg(name+' added! Share the invite link.');
   } catch(e) { showToastMsg('Error'); }
 };
 
-// ── DELETE TRIP ──
+// DELETE TRIP
 window.confirmDeleteTrip = function() { openModal('deleteTripModal'); };
-
 window.deleteTrip = async function() {
   closeModal('deleteTripModal');
-  try {
-    // Just remove user from this group (soft delete for the user)
-    await window.removeFromMyList(currentGroup.id);
-    if(unsubscribe) { unsubscribe(); unsubscribe = null; }
-    showScreen('splash');
-    renderGroupsList();
-  } catch(e) { showToastMsg('Error'); }
+  await window.removeFromMyList(currentGroup.id);
+  if(unsubscribe) { unsubscribe(); unsubscribe=null; }
+  showScreen('splash');
+  renderGroupsList();
 };
 
-// ── NOTIFICATIONS ──
+// NOTIFICATIONS
 async function registerFCM() {
   if(!messaging) return;
   if(!('serviceWorker' in navigator)) { showToastMsg('Notifications not supported'); return; }
   try {
     const perm = await Notification.requestPermission();
-    if(perm !== 'granted') { showToastMsg('Permission denied'); return; }
-
+    if(perm!=='granted') { showToastMsg('Permission denied'); return; }
     let swReg;
     try {
-      swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+      swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope:'/' });
       await navigator.serviceWorker.ready;
-    } catch(swErr) {
-      showToastMsg('Notification setup failed. Try refreshing.'); return;
-    }
-
-    fcmToken = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
+    } catch(swErr) { showToastMsg('Notification setup failed. Try refreshing.'); return; }
+    fcmToken = await getToken(messaging, { vapidKey:VAPID_KEY, serviceWorkerRegistration:swReg });
     if(fcmToken && currentGroup) {
       const ref  = doc(db,'groups',currentGroup.id);
       const snap = await getDoc(ref);
       if(snap.exists()) {
         const data    = snap.data();
-        const members = data.members || [];
+        const members = data.members||[];
         const idx     = members.findIndex(m=>m.phone===currentUser.phone);
-        if(idx>=0) { members[idx].fcmToken = fcmToken; await updateDoc(ref, { members }); }
+        if(idx>=0) { members[idx].fcmToken=fcmToken; await updateDoc(ref,{members}); }
       }
     }
-    document.getElementById('notifBanner').style.display = 'none';
+    document.getElementById('notifBanner').style.display='none';
     showToastMsg('Notifications enabled!');
     onMessage(messaging, payload => {
-      const { title, body } = payload.notification || {};
-      showToastMsg((title||'') + ': ' + (body||''));
+      const {title,body} = payload.notification||{};
+      showToastMsg((title||'')+': '+(body||''));
     });
   } catch(e) { showToastMsg('Could not enable notifications'); console.log(e); }
 }
-
 window.requestNotifPermission = async function() { await registerFCM(); };
-
 function checkNotifBanner() {
   if(!messaging) return;
-  if(Notification.permission === 'default') document.getElementById('notifBanner').style.display = 'flex';
+  if(Notification.permission==='default') document.getElementById('notifBanner').style.display='flex';
 }
 
-// ── SHARE / INVITE ──
-function getInviteLink() { return location.origin + location.pathname + '#join/' + currentGroup.id; }
+// SHARE
+function getInviteLink() { return location.origin+location.pathname+'#join/'+currentGroup.id; }
 function getWhatsAppMsg() {
-  return 'Hey! Join our trip group *' + currentGroup.name + '* on TripMate\n\nTap to join: ' + getInviteLink() + '\n\nGroup ID: ' + currentGroup.id;
+  return 'Hey! Join our trip group *'+currentGroup.name+'* on TripMate\n\nTap to join: '+getInviteLink()+'\n\nGroup ID: '+currentGroup.id;
 }
-window.shareWhatsApp      = () => window.open('https://wa.me/?text=' + encodeURIComponent(getWhatsAppMsg()), '_blank');
-window.shareWhatsAppModal = () => window.open('https://wa.me/?text=' + encodeURIComponent(getWhatsAppMsg()), '_blank');
-window.copyInviteLink     = () => navigator.clipboard.writeText(getInviteLink()).then(() => showToastMsg('Link copied!')).catch(() => showToastMsg(getInviteLink()));
+window.shareWhatsApp      = () => window.open('https://wa.me/?text='+encodeURIComponent(getWhatsAppMsg()),'_blank');
+window.shareWhatsAppModal = () => window.open('https://wa.me/?text='+encodeURIComponent(getWhatsAppMsg()),'_blank');
+window.copyInviteLink     = () => navigator.clipboard.writeText(getInviteLink()).then(()=>showToastMsg('Link copied!')).catch(()=>showToastMsg(getInviteLink()));
 window.copyModalLink      = () => {
   const link = document.getElementById('modalInviteLink').textContent;
-  navigator.clipboard.writeText(link).then(() => showToastMsg('Copied!')).catch(() => showToastMsg(link));
+  navigator.clipboard.writeText(link).then(()=>showToastMsg('Copied!')).catch(()=>showToastMsg(link));
 };
 
 </script>
