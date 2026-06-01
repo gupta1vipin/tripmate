@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TripMate">
+<title>TripMate – Travel Together</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #252540;
+    --surface3: #2e2e50;
+    --accent: #ff6b35;
+    --accent2: #ffd166;
+    --green: #06d6a0;
+    --text: #f0eff4;
+    --muted: #8888aa;
+    --border: rgba(255,255,255,0.08);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    max-width: 480px;
+    margin: 0 auto;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, .logo { font-family: 'Syne', sans-serif; }
+
+  /* SCREENS */
+  .screen { display: none; min-height: 100dvh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* SPLASH */
+  #splash {
+    align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 30% 20%, #2d1b69 0%, #0f0f1a 60%);
+    padding: 40px 24px; text-align: center; animation: fadeIn .5s ease;
+  }
+  .splash-icon {
+    width: 90px; height: 90px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 28px; display: flex; align-items: center; justify-content: center;
+    font-size: 40px; margin-bottom: 28px;
+    box-shadow: 0 20px 60px rgba(255,107,53,0.35);
+    animation: popIn .6s cubic-bezier(.34,1.56,.64,1) .2s both;
+  }
+  .splash-title { font-size: 42px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+  .splash-title span { color: var(--accent); }
+  .splash-sub { color: var(--muted); font-size: 15px; margin-bottom: 48px; line-height: 1.5; }
+
+  /* BUTTONS */
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 16px 24px; border-radius: var(--radius); border: none; cursor: pointer;
+    font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700;
+    transition: transform .15s, opacity .15s; width: 100%; text-decoration: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost { background: transparent; color: var(--muted); font-weight: 400; font-family: 'DM Sans', sans-serif; }
+  .btn-green { background: var(--green); color: #0f0f1a; }
+  .btn-sm { padding: 10px 16px; font-size: 13px; width: auto; border-radius: var(--radius-sm); }
+  .btn-stack { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+
+  /* FORMS */
+  .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  label { font-size: 13px; color: var(--muted); font-weight: 500; letter-spacing: .5px; text-transform: uppercase; }
+  input, textarea {
+    background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 15px;
+    padding: 14px 16px; outline: none; transition: border-color .2s; width: 100%;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  input::placeholder, textarea::placeholder { color: var(--muted); }
+
+  /* HEADER */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; background: var(--surface);
+    border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
+  }
+  .header-logo { font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+  .avatar-btn {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 50%; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-family: 'Syne', sans-serif; font-weight: 700; color: #fff;
+  }
+  .back-btn {
+    background: none; border: none; color: var(--text); cursor: pointer;
+    font-size: 20px; padding: 4px; display: flex; align-items: center;
+  }
+  .header-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 17px; flex: 1; text-align: center; }
+
+  /* CONTENT */
+  .content { flex: 1; overflow-y: auto; padding: 20px; }
+  .content-padded { padding: 24px; }
+
+  /* TAB BAR */
+  .tab-bar {
+    display: flex; background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  }
+  .tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 8px 4px; background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 10px; font-family: 'DM Sans', sans-serif;
+    font-weight: 500; letter-spacing: .3px; transition: color .2s;
+  }
+  .tab.active { color: var(--accent); }
+  .tab-icon { font-size: 22px; line-height: 1; }
+
+  /* CARDS */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 14px; }
+
+  /* CHECKLIST */
+  .checklist-item {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 10px;
+    transition: opacity .3s;
+  }
+  .checklist-item.done { opacity: 0.55; }
+  .check-circle {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all .2s; font-size: 13px; cursor: pointer;
+  }
+  .checklist-item.done .check-circle { background: var(--green); border-color: var(--green); }
+  .check-text { flex: 1; cursor: pointer; }
+  .check-label { font-size: 15px; transition: all .2s; }
+  .checklist-item.done .check-label { text-decoration: line-through; color: var(--muted); }
+  .check-who { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .qty-badge {
+    font-size: 12px; padding: 3px 10px; border-radius: 99px;
+    background: var(--surface3); color: var(--accent2);
+    font-weight: 600; flex-shrink: 0; white-space: nowrap;
+  }
+
+  /* ADD BAR */
+  .add-bar {
+    display: flex; gap: 10px; background: var(--surface);
+    border-top: 1px solid var(--border); padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  /* ITINERARY */
+  .day-block { margin-bottom: 20px; }
+  .day-label {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 14px; color: var(--accent2);
+    margin-bottom: 12px; letter-spacing: .5px; text-transform: uppercase;
+  }
+  .day-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .event-item { display: flex; gap: 14px; margin-bottom: 12px; }
+  .event-time-col { display: flex; flex-direction: column; align-items: center; width: 48px; flex-shrink: 0; }
+  .event-time { font-size: 12px; color: var(--muted); font-weight: 500; text-align: center; }
+  .event-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); margin: 6px 0; box-shadow: 0 0 0 3px rgba(255,107,53,.2); }
+  .event-line { flex: 1; width: 2px; background: var(--border); min-height: 20px; }
+  .event-card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 4px; }
+  .event-card-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+  .event-card-note { font-size: 12px; color: var(--muted); }
+
+  /* STATUS */
+  .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 99px; font-size: 13px; font-weight: 600; font-family: 'Syne', sans-serif; }
+  .pill-planned { background: rgba(255,209,102,.15); color: var(--accent2); }
+
+  /* INVITE */
+  .invite-box { background: var(--surface2); border: 1.5px dashed rgba(255,107,53,.4); border-radius: var(--radius); padding: 20px; text-align: center; margin-bottom: 20px; }
+  .invite-box p { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+  .invite-link { background: var(--surface3); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 13px; color: var(--accent2); word-break: break-all; margin-bottom: 14px; border: 1px solid var(--border); }
+
+  /* MEMBERS */
+  .member-row-full {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 10px;
+  }
+  .member-avatar-lg {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; font-family: 'Syne', sans-serif; color: #fff; flex-shrink: 0;
+  }
+  .member-info { flex: 1; }
+  .member-name { font-weight: 600; font-size: 15px; }
+  .member-phone { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .member-badge { font-size: 11px; padding: 3px 10px; border-radius: 99px; }
+  .badge-admin { background: rgba(255,107,53,.2); color: var(--accent); }
+  .badge-member { background: rgba(255,255,255,.07); color: var(--muted); }
+
+  /* PROGRESS */
+  .progress-bar-bg { height: 6px; background: var(--surface3); border-radius: 99px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; transition: width .4s ease; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* SECTION HEADER */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .section-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.6); z-index: 100;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; animation: fadeIn .2s ease; }
+  .modal {
+    background: var(--surface); border-radius: 24px 24px 0 0;
+    padding: 24px 24px max(24px, env(safe-area-inset-bottom));
+    width: 100%; max-width: 480px;
+    animation: slideUp .3s cubic-bezier(.32,.72,0,1);
+  }
+  .modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 99px; margin: 0 auto 20px; }
+  .modal-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; margin-bottom: 20px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--surface3); color: var(--text);
+    padding: 12px 22px; border-radius: 99px; font-size: 14px; font-weight: 500;
+    opacity: 0; transition: all .3s; pointer-events: none; z-index: 200;
+    white-space: nowrap; border: 1px solid var(--border);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-text { font-size: 15px; }
+
+  /* GROUP CARDS */
+  .group-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px;
+    cursor: pointer; transition: transform .15s, border-color .2s;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .group-card:active { transform: scale(0.98); }
+  .group-card:hover { border-color: rgba(255,107,53,.3); }
+  .group-emoji { font-size: 36px; flex-shrink: 0; }
+  .group-info { flex: 1; }
+  .group-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+  .group-desc { font-size: 13px; color: var(--muted); }
+  .group-arrow { color: var(--muted); font-size: 18px; }
+
+  /* NOTIF BANNER */
+  .notif-banner {
+    background: rgba(255,107,53,.12); border: 1px solid rgba(255,107,53,.3);
+    border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px; font-size: 13px;
+  }
+  .notif-banner button { margin-left: auto; flex-shrink: 0; }
+
+  /* SYNC INDICATOR */
+  .sync-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+    display: inline-block; margin-right: 6px;
+    box-shadow: 0 0 0 0 rgba(6,214,160,.4);
+    animation: pulse 2s infinite;
+  }
+  .sync-dot.offline { background: var(--muted); animation: none; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(6,214,160,.4)} 50%{box-shadow:0 0 0 6px rgba(6,214,160,0)} }
+
+  /* LOADING */
+  .loading { display:flex; align-items:center; justify-content:center; padding:40px; color:var(--muted); gap:10px; }
+  .spinner { width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* ANIMATIONS */
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  @keyframes popIn { from{transform:scale(0.5);opacity:0} to{transform:scale(1);opacity:1} }
+  @keyframes checkPop { 0%{transform:scale(1)} 50%{transform:scale(1.3)} 100%{transform:scale(1)} }
+  .check-animate { animation: checkPop .3s ease; }
+
+  .content { scrollbar-width: none; }
+  .content::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash" class="screen active">
+  <div class="splash-icon">🏕️</div>
+  <h1 class="splash-title">Trip<span>Mate</span></h1>
+  <p class="splash-sub">Plan, pack & travel together.<br>Live sync across your whole crew.</p>
+  <div class="btn-stack" style="max-width:300px">
+    <button class="btn btn-primary" onclick="showCreateGroup()">✨ Create a Trip Group</button>
+    <button class="btn btn-secondary" onclick="showJoinGroup()">🔗 Join via Invite Link</button>
+  </div>
+  <button class="btn btn-ghost" style="margin-top:12px" onclick="goToMyGroups()">View my groups →</button>
+</div>
+
+<!-- CREATE GROUP -->
+<div id="createGroup" class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="goBack('splash')">←</button>
+    <span class="header-title">New Trip Group</span>
+    <span style="width:32px"></span>
+  </div>
+  <div class="content content-padded">
+    <div class="form-group">
+      <label>Your Name</label>
+      <input type="text" id="adminName" placeholder="e.g. Rahul" maxlength="30">
+    </div>
+    <div class="form-group">
+      <label>Your Phone Number</label>
+      <input type="tel" id="adminPhone" placeholder="+91 98765 43210">
+    </div>
+    <div class="form-group">
+      <label>Trip / Group Name</label>
+      <input type="text" id="groupName" placeholder="e.g. Ladakh 2025 🏔️" maxlength="40">
+    </div>
+    <div class="form-group">
+      <label>Trip Dates (optional)</label>
+      <input type="text" id="groupDates" placeholder="e.g. Jun 15 – Jun 22, 2025">
+    </div>
+    <div class="form-group">
+      <label>Add Members (phone + name)</label>
+      <div id="memberInputs">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="tel" class="member-phone-input" placeholder="+91 xxxxx" style="flex:1">
+          <input type="text" class="member-name-input" placeholder="Name" style="width:100px">
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="tel" class="member-phone-input" placeholder="+91 xxxxx" style="flex:1">
+          <input type="text" class="member-name-input" placeholder="Name" style="width:100px">
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:4px" onclick="addMemberInput()">+ Add more</button>
+    </div>
+    <div style="height:80px"></div>
+  </div>
+  <div style="padding:16px;border-top:1px solid var(--border)">
+    <button class="btn btn-primary" id="createBtn" onclick="createGroup()">🚀 Create Group & Get Invite Link</button>
+  </div>
+</div>
+
+<!-- JOIN GROUP -->
+<div id="joinGroup" class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="goBack('splash')">←</button>
+    <span class="header-title">Join a Group</span>
+    <span style="width:32px"></span>
+  </div>
+  <div class="content content-padded">
+    <p style="color:var(--muted);margin-bottom:20px;font-size:14px;line-height:1.6">
+      Paste the invite link shared by your friend, or enter the Group ID directly.
+    </p>
+    <div class="form-group">
+      <label>Your Name</label>
+      <input type="text" id="joinName" placeholder="e.g. Priya">
+    </div>
+    <div class="form-group">
+      <label>Your Phone Number</label>
+      <input type="tel" id="joinPhone" placeholder="+91 98765 43210">
+    </div>
+    <div class="form-group">
+      <label>Invite Link or Group ID</label>
+      <input type="text" id="joinCode" placeholder="e.g. A3B7K2">
+    </div>
+    <button class="btn btn-green" onclick="joinGroup()" style="margin-top:8px">Join Group →</button>
+  </div>
+</div>
+
+<!-- MY GROUPS -->
+<div id="myGroups" class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="goBack('splash')">←</button>
+    <span class="header-title">My Trips</span>
+    <button class="avatar-btn" onclick="showCreateGroup()">+</button>
+  </div>
+  <div class="content" id="groupsList"></div>
+</div>
+
+<!-- MAIN APP -->
+<div id="groupApp" class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="goBack('myGroups')">←</button>
+    <span class="header-title" id="appGroupName"></span>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span class="sync-dot" id="syncDot"></span>
+      <button class="avatar-btn" id="appAvatar">?</button>
+    </div>
+  </div>
+
+  <!-- CHECKLIST TAB -->
+  <div id="tabChecklist" class="tab-content" style="flex:1;display:flex;flex-direction:column">
+    <div class="content" style="flex:1;padding-bottom:0">
+      <div id="notifBanner" style="display:none" class="notif-banner">
+        <span>🔔</span>
+        <span style="flex:1">Enable notifications to get alerts when someone adds or ticks an item</span>
+        <button class="btn btn-primary btn-sm" onclick="requestNotifPermission()">Enable</button>
+      </div>
+      <div style="margin-bottom:16px">
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+        <div class="progress-label">
+          <span id="progressLabel">0 of 0 sorted</span>
+          <span id="progressPercent">0%</span>
+        </div>
+      </div>
+      <div id="checklistItems"></div>
+    </div>
+    <div class="add-bar" style="flex-direction:column;gap:8px;padding:12px 16px">
+      <div style="display:flex;gap:8px;width:100%">
+        <input type="text" id="newItemInput" placeholder="What to bring? e.g. Warm jacket" style="flex:2;margin:0" onkeydown="if(event.key==='Enter')document.getElementById('newItemQty').focus()">
+        <input type="text" id="newItemQty" placeholder="Qty e.g. ×2" style="flex:1;margin:0" onkeydown="if(event.key==='Enter')addItem()">
+        <button class="btn btn-primary btn-sm" onclick="addItem()" style="flex-shrink:0">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITINERARY TAB -->
+  <div id="tabItinerary" class="tab-content" style="flex:1;display:none;flex-direction:column">
+    <div class="content">
+      <div class="section-header">
+        <div>
+          <div class="section-title" id="itinGroupName"></div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px" id="itinDates"></div>
+        </div>
+        <div class="status-pill pill-planned">🗓 Planned</div>
+      </div>
+      <div id="itineraryDays"></div>
+      <button class="btn btn-secondary" onclick="openModal('addDayModal')" style="margin-top:4px">+ Add Day / Stop</button>
+    </div>
+  </div>
+
+  <!-- MEMBERS TAB -->
+  <div id="tabMembers" class="tab-content" style="flex:1;display:none;flex-direction:column">
+    <div class="content">
+      <div class="invite-box">
+        <p>Share this link so friends can join instantly</p>
+        <div class="invite-link" id="inviteLinkDisplay"></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-secondary btn-sm" style="flex:1" onclick="copyInviteLink()">📋 Copy</button>
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="shareWhatsApp()">📱 WhatsApp</button>
+        </div>
+      </div>
+      <div class="section-header">
+        <div class="section-title">Members</div>
+        <button class="btn btn-ghost btn-sm" onclick="openModal('addMemberModal')">+ Add</button>
+      </div>
+      <div id="membersList"></div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('checklist',this)" id="tab-checklist">
+      <span class="tab-icon">✅</span>Pack List
+    </button>
+    <button class="tab" onclick="switchTab('itinerary',this)" id="tab-itinerary">
+      <span class="tab-icon">🗺️</span>Itinerary
+    </button>
+    <button class="tab" onclick="switchTab('members',this)" id="tab-members">
+      <span class="tab-icon">👥</span>Members
+    </button>
+  </div>
+</div>
+
+<!-- MODAL: Group Created -->
+<div class="modal-overlay" id="inviteModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="text-align:center;font-size:48px;margin-bottom:12px">🎉</div>
+    <div class="modal-title" style="text-align:center">Group Created!</div>
+    <p style="color:var(--muted);font-size:14px;line-height:1.6;text-align:center;margin-bottom:20px">
+      Share this link with your travel buddies — they can join in one tap!
+    </p>
+    <div class="invite-link" id="modalInviteLink" style="text-align:center;margin-bottom:16px"></div>
+    <div class="btn-stack">
+      <button class="btn btn-primary" onclick="shareWhatsAppModal()">📱 Send via WhatsApp</button>
+      <button class="btn btn-secondary" onclick="copyModalLink()">📋 Copy Invite Link</button>
+      <button class="btn btn-ghost" onclick="closeModal('inviteModal');openGroupApp()">Continue to Group →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Add itinerary -->
+<div class="modal-overlay" id="addDayModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add to Itinerary</div>
+    <div class="form-group">
+      <label>Day / Date</label>
+      <input type="text" id="dayLabel" placeholder="e.g. Day 1 – Jun 15">
+    </div>
+    <div class="form-group">
+      <label>Activity / Stop</label>
+      <input type="text" id="dayActivity" placeholder="e.g. Drive to Manali">
+    </div>
+    <div class="form-group">
+      <label>Time (optional)</label>
+      <input type="text" id="dayTime" placeholder="e.g. 6:00 AM">
+    </div>
+    <div class="form-group">
+      <label>Note (optional)</label>
+      <input type="text" id="dayNote" placeholder="e.g. Book hotel in advance">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('addDayModal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="addItineraryEvent()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Add member -->
+<div class="modal-overlay" id="addMemberModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add Member</div>
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="newMemberName" placeholder="e.g. Amit">
+    </div>
+    <div class="form-group">
+      <label>Phone Number</label>
+      <input type="tel" id="newMemberPhone" placeholder="+91 98765 43210">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('addMemberModal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="addMember()">Add & Invite</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, collection, setDoc, getDoc, updateDoc, onSnapshot, arrayUnion, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getMessaging, getToken, onMessage }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+
+// ── FIREBASE CONFIG ──
+const firebaseConfig = {
+  apiKey: "AIzaSyBGcS26jpNyf0PKbYQLAqb-wvFnTUJP5ok",
+  authDomain: "tripmate-6bad3.firebaseapp.com",
+  projectId: "tripmate-6bad3",
+  storageBucket: "tripmate-6bad3.firebasestorage.app",
+  messagingSenderId: "139737662997",
+  appId: "1:139737662997:web:7e04a256ed0e4e6706301c",
+  measurementId: "G-DMRK6MLB2K"
+};
+const VAPID_KEY = "BCuobuL_odG2eCa9025e1MIDfoJ52mMwaNJdMTHyEG4Bu96YCAW3Ee6OpKPYmnVDskJVW2EYJxagQUxTQ3PkatQ";
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+let messaging = null;
+try { messaging = getMessaging(app); } catch(e) { console.log('Messaging not supported:', e); }
+
+// ── STATE ──
+let currentGroup = null;
+let currentUser  = { name: '', phone: '' };
+let unsubscribe  = null; // Firestore listener
+let fcmToken     = null;
+
+// ── HELPERS ──
+const generateId  = () => Math.random().toString(36).slice(2,8).toUpperCase();
+const initials    = n  => (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const EMOJIS      = ['🏔️','🏖️','🌏','🗺️','✈️','🚗','🏕️','🌄','🎒','🛤️'];
+const randomEmoji = () => EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
+
+// Local cache of my group IDs
+const MY_GROUPS_KEY = 'tripmate_my_groups_v3';
+function getMyGroupIds()   { try { return JSON.parse(localStorage.getItem(MY_GROUPS_KEY)||'[]'); } catch { return []; } }
+function saveMyGroupId(id) { const g=getMyGroupIds(); if(!g.includes(id)){g.push(id);localStorage.setItem(MY_GROUPS_KEY,JSON.stringify(g));} }
+function saveCurrentUser() { localStorage.setItem('tripmate_user', JSON.stringify(currentUser)); }
+function loadCurrentUser() { try { return JSON.parse(localStorage.getItem('tripmate_user')||'{}'); } catch { return {}; } }
+
+// ── NAVIGATION ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>{ s.classList.remove('active'); s.style.display='none'; });
+  const s = document.getElementById(id);
+  s.style.display='flex'; s.classList.add('active');
+}
+window.goBack = function(to) {
+  if(unsubscribe) { unsubscribe(); unsubscribe=null; }
+  showScreen(to);
+  if(to==='myGroups') renderGroupsList();
+};
+window.showCreateGroup = () => showScreen('createGroup');
+window.showJoinGroup   = () => showScreen('joinGroup');
+window.goToMyGroups    = () => { renderGroupsList(); showScreen('myGroups'); };
+
+// ── MODALS ──
+window.openModal  = id => document.getElementById(id).classList.add('open');
+window.closeModal = id => document.getElementById(id).classList.remove('open');
+document.querySelectorAll('.modal-overlay').forEach(o =>
+  o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); })
+);
+
+// ── TOAST ──
+window.showToast = function(msg) {
+  const t = document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+};
+
+// ── SYNC DOT ──
+function setSynced(ok) {
+  const d = document.getElementById('syncDot');
+  if(d) { d.className = 'sync-dot' + (ok?'':' offline'); d.title = ok?'Live sync ON':'Offline'; }
+}
+
+// ── NOTIFICATIONS ──
+async function registerFCM() {
+  if(!messaging) return;
+  try {
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted') return;
+    fcmToken = await getToken(messaging, { vapidKey: VAPID_KEY });
+    if(fcmToken && currentGroup) {
+      // Save token to group members
+      const ref = doc(db, 'groups', currentGroup.id);
+      const snap = await getDoc(ref);
+      if(snap.exists()) {
+        const data = snap.data();
+        const members = data.members || [];
+        const idx = members.findIndex(m=>m.phone===currentUser.phone);
+        if(idx>=0) { members[idx].fcmToken = fcmToken; }
+        await updateDoc(ref, { members });
+      }
+    }
+    document.getElementById('notifBanner').style.display='none';
+    showToast('🔔 Notifications enabled!');
+
+    // Handle foreground messages
+    onMessage(messaging, payload => {
+      const { title, body } = payload.notification || {};
+      showToast(`🔔 ${title}: ${body}`);
+    });
+  } catch(e) { console.log('FCM error:', e); }
+}
+
+window.requestNotifPermission = async function() {
+  await registerFCM();
+};
+
+function checkNotifBanner() {
+  if(!messaging) return;
+  if(Notification.permission === 'default') {
+    document.getElementById('notifBanner').style.display='flex';
+  }
+}
+
+// ── SEND NOTIFICATION via Firestore trigger ──
+// We write a notification doc; a Cloud Function would normally send it.
+// For simplicity we store it so members see it on next open.
+async function logActivity(groupId, title, body) {
+  try {
+    const ref = doc(collection(db, 'groups', groupId, 'activity'));
+    await setDoc(ref, { title, body, by: currentUser.name, ts: serverTimestamp() });
+  } catch(e) { console.log('Activity log error:', e); }
+}
+
+// ── CREATE GROUP ──
+window.addMemberInput = function() {
+  const c = document.getElementById('memberInputs');
+  const d = document.createElement('div');
+  d.style='display:flex;gap:8px;margin-bottom:8px';
+  d.innerHTML=`<input type="tel" class="member-phone-input" placeholder="+91 xxxxx" style="flex:1"><input type="text" class="member-name-input" placeholder="Name" style="width:100px">`;
+  c.appendChild(d);
+};
+
+window.createGroup = async function() {
+  const adminName  = document.getElementById('adminName').value.trim();
+  const adminPhone = document.getElementById('adminPhone').value.trim();
+  const name       = document.getElementById('groupName').value.trim();
+  const dates      = document.getElementById('groupDates').value.trim();
+  if(!adminName) { showToast('Please enter your name'); return; }
+  if(!name)      { showToast('Please enter a trip name'); return; }
+
+  const btn = document.getElementById('createBtn');
+  btn.textContent='Creating…'; btn.disabled=true;
+
+  currentUser = { name: adminName, phone: adminPhone };
+  saveCurrentUser();
+
+  const phones = [...document.querySelectorAll('.member-phone-input')].map(i=>i.value.trim()).filter(Boolean);
+  const names  = [...document.querySelectorAll('.member-name-input')].map(i=>i.value.trim());
+  const members = [{ name:adminName, phone:adminPhone, role:'admin', fcmToken:'' }];
+  phones.forEach((ph,i) => { if(ph) members.push({ name:names[i]||'Member', phone:ph, role:'member', fcmToken:'' }); });
+
+  const groupId = generateId();
+  const group = { id:groupId, name, dates, emoji:randomEmoji(), members, checklist:[], itinerary:[], createdAt:Date.now() };
+
+  try {
+    await setDoc(doc(db,'groups',groupId), group);
+    saveMyGroupId(groupId);
+    currentGroup = group;
+    const link = `${location.origin}${location.pathname}#join/${groupId}`;
+    document.getElementById('modalInviteLink').textContent = link;
+    btn.textContent='🚀 Create Group & Get Invite Link'; btn.disabled=false;
+    openModal('inviteModal');
+  } catch(e) {
+    showToast('Error creating group. Check internet.'); console.error(e);
+    btn.textContent='🚀 Create Group & Get Invite Link'; btn.disabled=false;
+  }
+};
+
+// ── JOIN GROUP ──
+window.joinGroup = async function() {
+  const name  = document.getElementById('joinName').value.trim();
+  const phone = document.getElementById('joinPhone').value.trim();
+  const code  = document.getElementById('joinCode').value.trim();
+  if(!name) { showToast('Please enter your name'); return; }
+  if(!code) { showToast('Please enter an invite code'); return; }
+
+  const parts   = code.split('/');
+  const groupId = parts[parts.length-1].toUpperCase().replace(/[^A-Z0-9]/g,'');
+
+  showToast('Joining…');
+  try {
+    const ref  = doc(db,'groups',groupId);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) { showToast('Group not found. Check the link.'); return; }
+
+    currentUser = { name, phone };
+    saveCurrentUser();
+
+    const data = snap.data();
+    if(!data.members.find(m=>m.phone===phone)) {
+      await updateDoc(ref, { members: arrayUnion({ name, phone, role:'member', fcmToken:'' }) });
+    }
+    saveMyGroupId(groupId);
+    currentGroup = { ...data, id: groupId };
+    openGroupApp();
+  } catch(e) { showToast('Error joining. Check internet.'); console.error(e); }
+};
+
+// ── MY GROUPS ──
+async function renderGroupsList() {
+  const el = document.getElementById('groupsList');
+  const ids = getMyGroupIds();
+  if(!ids.length) {
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🗺️</div><p class="empty-text">No trips yet.<br>Create or join one!</p></div>`;
+    return;
+  }
+  el.innerHTML=`<div class="loading"><div class="spinner"></div> Loading…</div>`;
+  const groups = [];
+  for(const id of ids) {
+    try {
+      const snap = await getDoc(doc(db,'groups',id));
+      if(snap.exists()) groups.push({ ...snap.data(), id });
+    } catch(e) {}
+  }
+  if(!groups.length) {
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🗺️</div><p class="empty-text">No trips found.</p></div>`;
+    return;
+  }
+  el.innerHTML = groups.map(g=>`
+    <div class="group-card" onclick="openGroupById('${g.id}')">
+      <div class="group-emoji">${g.emoji||'🏕️'}</div>
+      <div class="group-info">
+        <div class="group-name">${g.name}</div>
+        <div class="group-desc">${(g.members||[]).length} member${(g.members||[]).length!==1?'s':''} · ${g.dates||'Dates TBD'}</div>
+      </div>
+      <div class="group-arrow">›</div>
+    </div>
+  `).join('');
+}
+
+window.openGroupById = async function(id) {
+  showToast('Loading…');
+  try {
+    const snap = await getDoc(doc(db,'groups',id));
+    if(!snap.exists()) { showToast('Group not found'); return; }
+    currentGroup = { ...snap.data(), id };
+    const saved = loadCurrentUser();
+    if(saved.name) currentUser = saved;
+    else if(currentGroup.members.length) currentUser = currentGroup.members[0];
+    openGroupApp();
+  } catch(e) { showToast('Error loading group'); console.error(e); }
+};
+
+// ── OPEN GROUP APP ──
+function openGroupApp() {
+  closeModal('inviteModal');
+  document.getElementById('appGroupName').textContent = currentGroup.name;
+  document.getElementById('appAvatar').textContent    = initials(currentUser.name);
+  document.getElementById('itinGroupName').textContent= currentGroup.name;
+  document.getElementById('itinDates').textContent    = currentGroup.dates||'';
+  const link = `${location.origin}${location.pathname}#join/${currentGroup.id}`;
+  document.getElementById('inviteLinkDisplay').textContent = link;
+
+  switchTab('checklist', document.getElementById('tab-checklist'));
+  showScreen('groupApp');
+  checkNotifBanner();
+  startLiveSync();
+  renderMembers();
+}
+
+// ── LIVE SYNC ──
+function startLiveSync() {
+  if(unsubscribe) unsubscribe();
+  setSynced(false);
+  const ref = doc(db,'groups',currentGroup.id);
+  unsubscribe = onSnapshot(ref,
+    snap => {
+      if(!snap.exists()) return;
+      currentGroup = { ...snap.data(), id: currentGroup.id };
+      setSynced(true);
+      renderChecklist();
+      renderItinerary();
+      renderMembers();
+    },
+    err => { setSynced(false); console.error(err); }
+  );
+}
+
+// ── TABS ──
+window.switchTab = function(name, btn) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(t=>t.style.display='none');
+  document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1)).style.display='flex';
+};
+
+// ── CHECKLIST ──
+function renderChecklist() {
+  if(!currentGroup) return;
+  const items = currentGroup.checklist || [];
+  const done  = items.filter(i=>i.done).length;
+  const pct   = items.length ? Math.round(done/items.length*100) : 0;
+  document.getElementById('progressFill').style.width  = pct+'%';
+  document.getElementById('progressLabel').textContent = `${done} of ${items.length} sorted`;
+  document.getElementById('progressPercent').textContent = pct+'%';
+
+  const el = document.getElementById('checklistItems');
+  if(!items.length) {
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🎒</div><p class="empty-text">List is empty.<br>Add anything you need to bring!</p></div>`;
+    return;
+  }
+  el.innerHTML = items.map(item=>`
+    <div class="checklist-item ${item.done?'done':''}" id="ci-${item.id}">
+      <div class="check-circle" onclick="toggleItem('${item.id}')">${item.done?'✓':''}</div>
+      <div class="check-text" onclick="toggleItem('${item.id}')">
+        <div class="check-label">${item.label}</div>
+        ${item.done && item.by ? `<div class="check-who">✓ by ${item.by}</div>` : ''}
+      </div>
+      ${item.qty ? `<div class="qty-badge">${item.qty}</div>` : ''}
+      <button onclick="deleteItem('${item.id}')" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:4px;flex-shrink:0;line-height:1">×</button>
+    </div>
+  `).join('');
+}
+
+window.toggleItem = async function(id) {
+  const items = currentGroup.checklist || [];
+  const item  = items.find(i=>i.id===id);
+  if(!item) return;
+  item.done = !item.done;
+  item.by   = item.done ? (currentUser.name||'Someone') : '';
+  try {
+    await updateDoc(doc(db,'groups',currentGroup.id), { checklist: items });
+    if(item.done) {
+      await logActivity(currentGroup.id, currentGroup.name, `${currentUser.name} packed "${item.label}"`);
+      showToast(`✓ "${item.label}" done!`);
+    }
+  } catch(e) { showToast('Sync error'); console.error(e); }
+};
+
+window.deleteItem = async function(id) {
+  const items = (currentGroup.checklist||[]).filter(i=>i.id!==id);
+  try {
+    await updateDoc(doc(db,'groups',currentGroup.id), { checklist: items });
+  } catch(e) { showToast('Error'); console.error(e); }
+};
+
+window.addItem = async function() {
+  const input    = document.getElementById('newItemInput');
+  const qtyInput = document.getElementById('newItemQty');
+  const label    = input.value.trim();
+  const qty      = qtyInput.value.trim();
+  if(!label) { showToast('Enter an item name'); return; }
+
+  const newItem = { id:generateId(), label, qty, done:false, by:'', addedBy:currentUser.name };
+  const items   = [...(currentGroup.checklist||[]), newItem];
+  try {
+    await updateDoc(doc(db,'groups',currentGroup.id), { checklist: items });
+    await logActivity(currentGroup.id, currentGroup.name, `${currentUser.name} added "${label}"${qty?' ('+qty+')':''}`);
+    input.value=''; qtyInput.value=''; input.focus();
+    showToast(`"${label}" added!`);
+  } catch(e) { showToast('Sync error'); console.error(e); }
+};
+
+// ── ITINERARY ──
+function renderItinerary() {
+  const el = document.getElementById('itineraryDays');
+  const itin = currentGroup.itinerary || [];
+  if(!itin.length) {
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">🗺️</div><p class="empty-text">No itinerary yet.<br>Tap "+ Add Day / Stop" to plan!</p></div>`;
+    return;
+  }
+  const days = {};
+  itin.forEach(ev => { if(!days[ev.day]) days[ev.day]=[]; days[ev.day].push(ev); });
+  el.innerHTML = Object.entries(days).map(([day,events])=>`
+    <div class="day-block">
+      <div class="day-label">${day}</div>
+      ${events.map((ev,i)=>`
+        <div class="event-item">
+          <div class="event-time-col">
+            <div class="event-time">${ev.time||''}</div>
+            <div class="event-dot"></div>
+            ${i<events.length-1?'<div class="event-line"></div>':''}
+          </div>
+          <div style="flex:1">
+            <div class="event-card">
+              <div class="event-card-title">${ev.activity}</div>
+              ${ev.note?`<div class="event-card-note">${ev.note}</div>`:''}
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+window.addItineraryEvent = async function() {
+  const day      = document.getElementById('dayLabel').value.trim();
+  const activity = document.getElementById('dayActivity').value.trim();
+  const time     = document.getElementById('dayTime').value.trim();
+  const note     = document.getElementById('dayNote').value.trim();
+  if(!day||!activity) { showToast('Enter day and activity'); return; }
+
+  const itin = [...(currentGroup.itinerary||[]), { id:generateId(), day, activity, time, note }];
+  try {
+    await updateDoc(doc(db,'groups',currentGroup.id), { itinerary: itin });
+    await logActivity(currentGroup.id, currentGroup.name, `${currentUser.name} added itinerary: ${activity}`);
+    closeModal('addDayModal');
+    ['dayLabel','dayActivity','dayTime','dayNote'].forEach(id=>document.getElementById(id).value='');
+    showToast('Added to itinerary!');
+  } catch(e) { showToast('Sync error'); console.error(e); }
+};
+
+// ── MEMBERS ──
+function renderMembers() {
+  const el = document.getElementById('membersList');
+  const members = currentGroup.members||[];
+  el.innerHTML = members.map(m=>`
+    <div class="member-row-full">
+      <div class="member-avatar-lg">${initials(m.name)}</div>
+      <div class="member-info">
+        <div class="member-name">${m.name}</div>
+        <div class="member-phone">${m.phone||'No phone'}</div>
+      </div>
+      <div class="member-badge ${m.role==='admin'?'badge-admin':'badge-member'}">${m.role==='admin'?'Admin':'Member'}</div>
+    </div>
+  `).join('');
+}
+
+window.addMember = async function() {
+  const name  = document.getElementById('newMemberName').value.trim();
+  const phone = document.getElementById('newMemberPhone').value.trim();
+  if(!name) { showToast('Enter a name'); return; }
+  try {
+    await updateDoc(doc(db,'groups',currentGroup.id), {
+      members: arrayUnion({ name, phone, role:'member', fcmToken:'' })
+    });
+    closeModal('addMemberModal');
+    document.getElementById('newMemberName').value='';
+    document.getElementById('newMemberPhone').value='';
+    showToast(`${name} added! Share the invite link.`);
+  } catch(e) { showToast('Error'); console.error(e); }
+};
+
+// ── INVITE / SHARE ──
+function getInviteLink() { return `${location.origin}${location.pathname}#join/${currentGroup.id}`; }
+function getWhatsAppMsg() {
+  return `Hey! Join our trip group *${currentGroup.name}* on TripMate 🏕️\n\nTap to join: ${getInviteLink()}\n\nGroup ID: ${currentGroup.id}`;
+}
+window.shareWhatsApp      = () => window.open(`https://wa.me/?text=${encodeURIComponent(getWhatsAppMsg())}`, '_blank');
+window.shareWhatsAppModal = () => window.open(`https://wa.me/?text=${encodeURIComponent(getWhatsAppMsg())}`, '_blank');
+window.copyInviteLink     = () => navigator.clipboard.writeText(getInviteLink()).then(()=>showToast('Link copied!')).catch(()=>showToast(getInviteLink()));
+window.copyModalLink      = () => {
+  const link = document.getElementById('modalInviteLink').textContent;
+  navigator.clipboard.writeText(link).then(()=>showToast('Copied!')).catch(()=>showToast(link));
+};
+
+// ── DEEP LINK ──
+(function handleDeepLink() {
+  const match = (location.hash+'').match(/join\/([A-Z0-9]{6})/i);
+  if(match) {
+    const saved = loadCurrentUser();
+    if(saved.name) {
+      document.getElementById('joinName').value  = saved.name;
+      document.getElementById('joinPhone').value = saved.phone||'';
+    }
+    document.getElementById('joinCode').value = match[1].toUpperCase();
+    showScreen('joinGroup');
+  }
+})();
+
+// ── RESTORE SESSION ──
+(function restoreSession() {
+  const saved = loadCurrentUser();
+  if(saved.name) currentUser = saved;
+})();
+
+</script>
+</body>
+</html>
