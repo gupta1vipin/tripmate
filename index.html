@@ -191,6 +191,28 @@
   .stat-label{font-size:12px;color:var(--muted);margin-bottom:4px}
   .stat-value{font-size:22px;font-weight:700;font-family:'Syne',sans-serif}
   .settlement-note{font-size:12px;color:var(--muted);margin-top:12px;padding-top:12px;border-top:1px solid var(--border);line-height:1.6}
+
+  /* MEMBER CHIPS (expense modal) */
+  .member-chip-select {
+    display:flex;align-items:center;gap:8px;
+    padding:8px 14px 8px 8px;
+    border-radius:99px;
+    border:2px solid var(--border);
+    background:var(--surface2);
+    cursor:pointer;transition:all .2s;
+    font-size:14px;font-weight:600;color:var(--muted);
+  }
+  .member-chip-select.selected {
+    border-color:var(--accent);
+    background:rgba(255,107,53,.12);
+    color:var(--text);
+  }
+  .member-chip-select .chip-avatar {
+    width:28px;height:28px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;color:#fff;flex-shrink:0;
+  }
 </style>
 </head>
 <body>
@@ -405,13 +427,24 @@
       <div id="expenseItems">
         <div class="empty-state"><div class="empty-icon">💸</div><p class="empty-text">No expenses yet.<br>Add the first one below!</p></div>
       </div>
-    </div>
-    <div class="add-bar" style="flex-direction:column;gap:8px;padding:12px 16px">
-      <div style="display:flex;gap:8px;width:100%">
-        <input type="text" id="expLabel" placeholder="What was it for?" style="flex:2;margin:0" onkeydown="if(event.key==='Enter')document.getElementById('expAmount').focus()">
-        <input type="number" id="expAmount" placeholder="₹0" step="0.01" min="0" style="flex:1;margin:0;color:var(--accent2)" onkeydown="if(event.key==='Enter')addExpense()">
-        <button class="btn btn-primary btn-sm" onclick="addExpense()" style="flex-shrink:0">Add</button>
+
+      <!-- DELETED EXPENSES AUDIT LOG -->
+      <div id="deletedExpenses" style="display:none;margin-top:8px">
+        <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.toggle-arrow').textContent=this.nextElementSibling.style.display==='none'?'▸':'▾'"
+          style="display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:8px 0;width:100%">
+          <span style="font-size:14px">🗑</span>
+          <span>Deleted Expenses</span>
+          <span class="toggle-arrow" style="margin-left:4px">▸</span>
+          <span style="flex:1;height:1px;background:var(--border);margin-left:8px"></span>
+        </button>
+        <div id="deletedExpenseItems" style="display:none;padding-top:4px"></div>
       </div>
+
+    </div>
+    <div style="background:var(--surface);border-top:1px solid var(--border);padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom))">
+      <button onclick="openModal('addExpenseModal')" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:var(--accent);border:none;border-radius:var(--radius);color:#fff;font-family:'Syne',sans-serif;font-size:15px;font-weight:700;padding:16px;cursor:pointer">
+        + Add Expense
+      </button>
     </div>
   </div>
 
@@ -1008,114 +1041,191 @@ function renderExpenses() {
   const expenses = currentGroup.expenses || [];
   const members  = currentGroup.members  || [];
 
-  // Totals
-  const total = expenses.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
-  const count = members.length || 1;
-  const perPerson = total / count;
+  // Populate member chips in the add expense modal
+  const chipsEl = document.getElementById('expMemberChips');
+  if(chipsEl && members.length) {
+    const defaultPayer = members.find(m=>m.name===currentUser.name) ? currentUser.name : members[0].name;
+    chipsEl.innerHTML = members.map(m => `
+      <div class="member-chip-select ${m.name===defaultPayer?'selected':''}"
+        onclick="selectExpensePayer(this,'${m.name}')">
+        <div class="chip-avatar">${initials(m.name)}</div>
+        <span>${m.name}</span>
+      </div>
+    `).join('');
+  }
 
-  document.getElementById('expTotal').textContent     = '₹' + total.toFixed(2);
-  document.getElementById('expPerPerson').textContent = '₹' + perPerson.toFixed(2);
+  // Active vs deleted
+  const active  = expenses.filter(e=>!e.deleted);
+  const deleted = expenses.filter(e=> e.deleted);
+
+  // Totals (active only)
+  const total     = active.reduce((s,e) => s+(parseFloat(e.amount)||0), 0);
+  const count     = members.length || 1;
+  const perPerson = total / count;
+  document.getElementById('expTotal').textContent     = '\u20b9' + total.toFixed(2);
+  document.getElementById('expPerPerson').textContent = '\u20b9' + perPerson.toFixed(2);
 
   // Expense list
   const el = document.getElementById('expenseItems');
-  if(!expenses.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">💸</div><p class="empty-text">No expenses yet.<br>Add the first one below!</p></div>';
+  if(!active.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">\uD83D\uDCB8</div><p class="empty-text">No expenses yet.<br>Tap "+ Add Expense" below!</p></div>';
   } else {
-    el.innerHTML = [...expenses].reverse().map(exp => `
+    el.innerHTML = [...active].reverse().map(exp => `
       <div class="expense-item">
         <div class="expense-avatar">${initials(exp.by||'?')}</div>
         <div class="expense-info">
           <div class="expense-label">${exp.label}</div>
-          <div class="expense-meta">${exp.by} · ${exp.date||''}</div>
+          <div class="expense-meta">${exp.by} &middot; ${exp.date||''}${exp.addedBy && exp.addedBy!==exp.by ? ' &middot; added by '+exp.addedBy : ''}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <div class="expense-amount">₹${parseFloat(exp.amount).toFixed(2)}</div>
-          <button onclick="deleteExpense('${exp.id}')" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px;line-height:1;flex-shrink:0">×</button>
+          <div class="expense-amount">\u20b9${parseFloat(exp.amount).toFixed(2)}</div>
+          <button onclick="deleteExpense('${exp.id}')" title="Remove" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:2px;line-height:1;flex-shrink:0">&times;</button>
         </div>
       </div>
     `).join('');
   }
 
+  // Deleted / audit log
+  const auditEl = document.getElementById('deletedExpenses');
+  if(auditEl) {
+    auditEl.style.display = deleted.length ? 'block' : 'none';
+    const auditList = document.getElementById('deletedExpenseItems');
+    if(auditList && deleted.length) {
+      auditList.innerHTML = [...deleted].reverse().map(exp => `
+        <div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;opacity:0.7">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:var(--muted);text-decoration:line-through;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${exp.label}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">\u20b9${parseFloat(exp.amount).toFixed(2)} &middot; ${exp.by} &middot; deleted by ${exp.deletedBy||'?'} &middot; ${exp.deletedAt||''}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button onclick="restoreExpense('${exp.id}')" style="background:rgba(6,214,160,.15);border:none;border-radius:8px;color:var(--green);font-size:11px;font-weight:700;padding:5px 10px;cursor:pointer">Restore</button>
+            <button onclick="permanentDeleteExpense('${exp.id}')" style="background:rgba(255,71,87,.1);border:none;border-radius:8px;color:var(--red);font-size:11px;font-weight:700;padding:5px 10px;cursor:pointer">Delete Forever</button>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
   // Split summary
   const splitEl = document.getElementById('splitSummary');
-  if(!expenses.length || members.length < 2) { splitEl.style.display='none'; return; }
-  splitEl.style.display = 'block';
+  if(!active.length || members.length < 2) { if(splitEl) splitEl.style.display='none'; return; }
+  if(splitEl) splitEl.style.display = 'block';
 
-  // Calculate paid per person
   const paid = {};
   members.forEach(m => { paid[m.phone] = { name:m.name, paid:0 }; });
-  expenses.forEach(exp => {
+  active.forEach(exp => {
     const m = members.find(m=>m.name===exp.by);
-    if(m && paid[m.phone] !== undefined) paid[m.phone].paid += parseFloat(exp.amount)||0;
+    if(m && paid[m.phone]!==undefined) paid[m.phone].paid += parseFloat(exp.amount)||0;
   });
 
-  // Balance = paid - fair share
   const rows = Object.values(paid).map(p => ({
-    name: p.name,
-    paid: p.paid,
+    name: p.name, paid: p.paid,
     balance: parseFloat((p.paid - perPerson).toFixed(2))
   }));
 
-  document.getElementById('splitRows').innerHTML = rows.map(r => `
+  const splitRowsEl = document.getElementById('splitRows');
+  if(splitRowsEl) splitRowsEl.innerHTML = rows.map(r => `
     <div class="split-row">
       <div style="display:flex;align-items:center;gap:10px">
         <div class="expense-avatar" style="width:32px;height:32px;font-size:12px">${initials(r.name)}</div>
         <div>
           <div style="font-size:13px;font-weight:600">${r.name}</div>
-          <div style="font-size:11px;color:var(--muted)">paid ₹${r.paid.toFixed(2)}</div>
+          <div style="font-size:11px;color:var(--muted)">paid \u20b9${r.paid.toFixed(2)}</div>
         </div>
       </div>
-      <div class="split-badge ${r.balance > 0.01 ? 'badge-gets' : r.balance < -0.01 ? 'badge-owes' : 'badge-even'}">
-        ${r.balance > 0.01 ? 'gets ₹'+r.balance.toFixed(2) : r.balance < -0.01 ? 'owes ₹'+Math.abs(r.balance).toFixed(2) : 'settled'}
+      <div class="split-badge ${r.balance>0.01?'badge-gets':r.balance<-0.01?'badge-owes':'badge-even'}">
+        ${r.balance>0.01?'gets \u20b9'+r.balance.toFixed(2):r.balance<-0.01?'owes \u20b9'+Math.abs(r.balance).toFixed(2):'settled'}
       </div>
     </div>
   `).join('');
 
-  // Settlement instructions — simplest debt algorithm
-  const creditors = rows.filter(r=>r.balance > 0.01).sort((a,b)=>b.balance-a.balance);
-  const debtors   = rows.filter(r=>r.balance < -0.01).sort((a,b)=>a.balance-b.balance);
-  const notes = [];
-  const creds = creditors.map(c=>({...c}));
-  const debts = debtors.map(d=>({...d}));
+  // Settlement instructions
+  const creditors = rows.filter(r=>r.balance>0.01).sort((a,b)=>b.balance-a.balance);
+  const debtors   = rows.filter(r=>r.balance<-0.01).sort((a,b)=>a.balance-b.balance);
+  const notes=[], creds=creditors.map(c=>({...c})), debts=debtors.map(d=>({...d}));
   let ci=0, di=0;
   while(ci<creds.length && di<debts.length) {
-    const amount = Math.min(creds[ci].balance, Math.abs(debts[di].balance));
-    if(amount > 0.01) notes.push(debts[di].name + ' pays ' + creds[ci].name + ' ₹' + amount.toFixed(2));
-    creds[ci].balance  -= amount;
-    debts[di].balance  += amount;
-    if(creds[ci].balance < 0.01) ci++;
-    if(Math.abs(debts[di].balance) < 0.01) di++;
+    const amt = Math.min(creds[ci].balance, Math.abs(debts[di].balance));
+    if(amt>0.01) notes.push(debts[di].name+' pays '+creds[ci].name+' \u20b9'+amt.toFixed(2));
+    creds[ci].balance-=amt; debts[di].balance+=amt;
+    if(creds[ci].balance<0.01) ci++;
+    if(Math.abs(debts[di].balance)<0.01) di++;
   }
-  document.getElementById('settlementNote').innerHTML = notes.length
-    ? '<strong>To settle up:</strong><br>' + notes.join('<br>')
+  const noteEl = document.getElementById('settlementNote');
+  if(noteEl) noteEl.innerHTML = notes.length
+    ? '<strong>To settle up:</strong><br>'+notes.join('<br>')
     : 'Everyone is settled up!';
 }
 
+
 window.addExpense = async function() {
-  const labelEl  = document.getElementById('expLabel');
-  const amountEl = document.getElementById('expAmount');
-  const label    = labelEl.value.trim();
-  const amount   = parseFloat(amountEl.value);
-  if(!label)          { showToastMsg('Enter what the expense was for'); return; }
-  if(!amount || amount <= 0) { showToastMsg('Enter a valid amount'); return; }
+  const labelEl   = document.getElementById('expLabel');
+  const amountEl  = document.getElementById('expAmount');
+  const label     = labelEl.value.trim();
+  const amount    = parseFloat(amountEl.value);
+
+  // Get selected chip
+  const selectedChip = document.querySelector('.member-chip-select.selected');
+  const paidBy = selectedChip ? selectedChip.getAttribute('data-name') || selectedChip.querySelector('span').textContent : currentUser.name;
+
+  if(!paidBy)              { showToastMsg('Select who paid'); return; }
+  if(!label)               { showToastMsg('Enter what the expense was for'); return; }
+  if(!amount || amount<=0) { showToastMsg('Enter a valid amount'); return; }
 
   const now  = new Date();
   const date = now.toLocaleDateString('en-IN', { day:'numeric', month:'short' });
-  const exp  = { id:generateId(), label, amount:parseFloat(amount.toFixed(2)), by:currentUser.name, date, addedAt:Date.now() };
+  const exp  = { id:generateId(), label, amount:parseFloat(amount.toFixed(2)), by:paidBy, addedBy:currentUser.name, date, addedAt:Date.now() };
   const expenses = [...(currentGroup.expenses||[]), exp];
 
   try {
     await updateDoc(doc(db,'groups',currentGroup.id), { expenses });
-    labelEl.value=''; amountEl.value=''; labelEl.focus();
-    showToastMsg('₹'+amount.toFixed(2)+' added!');
+    labelEl.value=''; amountEl.value='';
+    closeModal('addExpenseModal');
+    showToastMsg(paidBy + ' paid ₹' + amount.toFixed(2) + ' — saved!');
   } catch(e) { showToastMsg('Sync error'); console.error(e); }
 };
 
+window.selectExpensePayer = function(el, name) {
+  document.querySelectorAll('.member-chip-select').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+};
+
 window.deleteExpense = async function(id) {
+  const exp = (currentGroup.expenses||[]).find(e=>e.id===id);
+  if(!exp) return;
+
+  // Confirmation first
+  if(!confirm(`Remove "${exp.label}" (\u20b9${exp.amount.toFixed(2)}) paid by ${exp.by}?\n\nIt will be moved to Deleted and can be restored.`)) return;
+
+  // Soft delete: mark as deleted instead of removing
+  const now = new Date();
+  const expenses = (currentGroup.expenses||[]).map(e =>
+    e.id===id ? { ...e, deleted:true, deletedBy:currentUser.name, deletedAt:now.toLocaleDateString('en-IN',{day:'numeric',month:'short'})+' '+now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) } : e
+  );
+  try {
+    await updateDoc(doc(db,'groups',currentGroup.id), { expenses });
+    showToastMsg('"'+exp.label+'" removed. Tap Deleted to restore.');
+  } catch(e) { showToastMsg('Error'); console.error(e); }
+};
+
+window.restoreExpense = async function(id) {
+  const expenses = (currentGroup.expenses||[]).map(e =>
+    e.id===id ? { ...e, deleted:false, deletedBy:undefined, deletedAt:undefined } : e
+  );
+  try {
+    await updateDoc(doc(db,'groups',currentGroup.id), { expenses });
+    showToastMsg('Expense restored!');
+  } catch(e) { showToastMsg('Error'); console.error(e); }
+};
+
+window.permanentDeleteExpense = async function(id) {
+  const exp = (currentGroup.expenses||[]).find(e=>e.id===id);
+  if(!exp) return;
+  if(!confirm(`Permanently delete "${exp.label}"? This cannot be undone.`)) return;
   const expenses = (currentGroup.expenses||[]).filter(e=>e.id!==id);
   try {
     await updateDoc(doc(db,'groups',currentGroup.id), { expenses });
-    showToastMsg('Expense removed');
+    showToastMsg('Permanently deleted.');
   } catch(e) { showToastMsg('Error'); }
 };
 
@@ -1133,5 +1243,39 @@ window.copyModalLink      = () => {
 };
 
 </script>
+
+<!-- MODAL: Add Expense -->
+<div class="modal-overlay" id="addExpenseModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add Expense</div>
+
+    <!-- Who paid — member chips -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:500;margin-bottom:10px">Who paid?</div>
+      <div id="expMemberChips" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    </div>
+
+    <!-- What for -->
+    <div class="form-group">
+      <label>What was it for?</label>
+      <input type="text" id="expLabel" placeholder="e.g. Petrol, Hotel, Dinner" onkeydown="if(event.key==='Enter')document.getElementById('expAmount').focus()">
+    </div>
+
+    <!-- Amount -->
+    <div class="form-group">
+      <label>Amount (&#8377;)</label>
+      <input type="number" id="expAmount" placeholder="0.00" step="0.01" min="0"
+        style="color:var(--accent2);font-size:22px;font-weight:700;letter-spacing:-0.5px"
+        onkeydown="if(event.key==='Enter')addExpense()">
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('addExpenseModal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="addExpense()">Add Expense</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
