@@ -1125,16 +1125,19 @@ function renderExpenses() {
 
   const splitRowsEl = document.getElementById('splitRows');
   if(splitRowsEl) splitRowsEl.innerHTML = rows.map(r => `
-    <div class="split-row">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div class="expense-avatar" style="width:32px;height:32px;font-size:12px">${initials(r.name)}</div>
+    <div class="split-row" style="align-items:center">
+      <div style="display:flex;align-items:center;gap:10px;flex:1">
+        <div class="expense-avatar" style="width:34px;height:34px;font-size:12px">${initials(r.name)}</div>
         <div>
           <div style="font-size:13px;font-weight:600">${r.name}</div>
-          <div style="font-size:11px;color:var(--muted)">paid \u20b9${r.paid.toFixed(2)}</div>
+          <div style="font-size:11px;color:var(--muted)">paid ₹${r.paid.toFixed(2)}</div>
         </div>
       </div>
-      <div class="split-badge ${r.balance>0.01?'badge-gets':r.balance<-0.01?'badge-owes':'badge-even'}">
-        ${r.balance>0.01?'gets \u20b9'+r.balance.toFixed(2):r.balance<-0.01?'owes \u20b9'+Math.abs(r.balance).toFixed(2):'settled'}
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">₹${r.paid.toFixed(2)}</div>
+        <div class="split-badge ${r.balance>0.01?'badge-gets':r.balance<-0.01?'badge-owes':'badge-even'}" style="font-size:11px;padding:3px 10px">
+          ${r.balance>0.01?'gets ₹'+r.balance.toFixed(2):r.balance<-0.01?'owes ₹'+Math.abs(r.balance).toFixed(2):'settled'}
+        </div>
       </div>
     </div>
   `).join('');
