@@ -60,10 +60,10 @@
   .content-padded{padding:24px}
 
   /* TAB BAR */
-  .tab-bar{display:flex;background:var(--surface);border-top:1px solid var(--border);padding:8px 0 max(8px,env(safe-area-inset-bottom))}
-  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:10px;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.3px;transition:color .2s}
-  .tab.active{color:var(--accent)}
-  .tab-icon{font-size:22px;line-height:1}
+  .tab-bar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 8px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;color:var(--muted);font-size:10px;font-family:'DM Sans',sans-serif;font-weight:500;letter-spacing:.3px;transition:color .2s,border-color .2s;margin-bottom:-1px}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-icon{font-size:18px;line-height:1}
 
   /* CHECKLIST */
   .checklist-item{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px;transition:opacity .3s}
@@ -301,7 +301,7 @@
 </div>
 
 <!-- MAIN APP -->
-<div id="groupApp" class="screen">
+<div id="groupApp" class="screen" style="height:100dvh;max-height:100dvh">
   <div class="header">
     <button class="back-btn" onclick="goBack('splash')">←</button>
     <span class="header-title" id="appGroupName"></span>
@@ -311,9 +311,16 @@
     </div>
   </div>
 
+  <div class="tab-bar" style="border-top:none;border-bottom:1px solid var(--border);padding:0">
+    <button class="tab active" onclick="switchTab('checklist',this)" id="tab-checklist"><span class="tab-icon">✅</span>Pack List</button>
+    <button class="tab" onclick="switchTab('itinerary',this)" id="tab-itinerary"><span class="tab-icon">🗺️</span>Itinerary</button>
+    <button class="tab" onclick="switchTab('expenses',this)" id="tab-expenses"><span class="tab-icon">💸</span>Expenses</button>
+    <button class="tab" onclick="switchTab('members',this)" id="tab-members"><span class="tab-icon">👥</span>Members</button>
+  </div>
+
   <!-- CHECKLIST TAB -->
-  <div id="tabChecklist" class="tab-content" style="flex:1;display:flex;flex-direction:column">
-    <div class="content" style="flex:1;padding-bottom:0">
+  <div id="tabChecklist" class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+    <div class="content" style="flex:1;overflow-y:auto;padding-bottom:0;min-height:0">
       <div id="notifBanner" style="display:none" class="notif-banner">
         <span>🔔</span>
         <span style="flex:1">Get notified when someone adds or ticks an item</span>
@@ -335,8 +342,8 @@
   </div>
 
   <!-- ITINERARY TAB -->
-  <div id="tabItinerary" class="tab-content" style="flex:1;display:none;flex-direction:column">
-    <div class="content">
+  <div id="tabItinerary" class="tab-content" style="flex:1;display:none;flex-direction:column;min-height:0;overflow:hidden">
+    <div class="content" style="flex:1;overflow-y:auto;min-height:0">
       <div class="section-header">
         <div>
           <div class="section-title" id="itinGroupName"></div>
@@ -350,8 +357,8 @@
   </div>
 
   <!-- MEMBERS TAB -->
-  <div id="tabMembers" class="tab-content" style="flex:1;display:none;flex-direction:column">
-    <div class="content">
+  <div id="tabMembers" class="tab-content" style="flex:1;display:none;flex-direction:column;min-height:0;overflow:hidden">
+    <div class="content" style="flex:1;overflow-y:auto;min-height:0">
       <div class="invite-box">
         <p>Share so friends can join instantly</p>
         <div class="invite-link" id="inviteLinkDisplay"></div>
@@ -373,8 +380,8 @@
 
 
   <!-- EXPENSES TAB -->
-  <div id="tabExpenses" class="tab-content" style="flex:1;display:none;flex-direction:column">
-    <div class="content" style="flex:1;padding-bottom:0">
+  <div id="tabExpenses" class="tab-content" style="flex:1;display:none;flex-direction:column;min-height:0;overflow:hidden">
+    <div class="content" style="flex:1;overflow-y:auto;padding-bottom:0;min-height:0">
       <div style="display:flex;gap:10px;margin-bottom:16px">
         <div class="stat-card">
           <div class="stat-label">Total Spent</div>
@@ -408,12 +415,6 @@
     </div>
   </div>
 
-  <div class="tab-bar">
-    <button class="tab active" onclick="switchTab('checklist',this)" id="tab-checklist"><span class="tab-icon">✅</span>Pack List</button>
-    <button class="tab" onclick="switchTab('itinerary',this)" id="tab-itinerary"><span class="tab-icon">🗺️</span>Itinerary</button>
-    <button class="tab" onclick="switchTab('expenses',this)" id="tab-expenses"><span class="tab-icon">💸</span>Expenses</button>
-    <button class="tab" onclick="switchTab('members',this)" id="tab-members"><span class="tab-icon">👥</span>Members</button>
-  </div>
 </div>
 
 <!-- MODAL: Group Created -->
@@ -808,8 +809,10 @@ function startLiveSync() {
 window.switchTab = function(name, btn) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  document.querySelectorAll('.tab-content').forEach(t=>t.style.display='none');
-  document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1)).style.display='flex';
+  document.querySelectorAll('.tab-content').forEach(t=>{ t.style.display='none'; t.style.flex=''; });
+  const active = document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1));
+  active.style.display='flex';
+  active.style.flex='1';
 };
 
 // CHECKLIST
