@@ -173,6 +173,24 @@
   @keyframes popIn{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}
   .content{scrollbar-width:none}
   .content::-webkit-scrollbar{display:none}
+
+  /* EXPENSES */
+  .expense-item{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px}
+  .expense-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;font-family:'Syne',sans-serif;color:#fff;flex-shrink:0}
+  .expense-info{flex:1;min-width:0}
+  .expense-label{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .expense-meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .expense-amount{font-size:15px;font-weight:700;color:var(--accent2);flex-shrink:0}
+  .split-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+  .split-row:last-child{border-bottom:none}
+  .split-badge{font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px}
+  .badge-owes{background:rgba(255,71,87,.15);color:var(--red)}
+  .badge-gets{background:rgba(6,214,160,.15);color:var(--green)}
+  .badge-even{background:rgba(136,136,170,.15);color:var(--muted)}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;flex:1}
+  .stat-label{font-size:12px;color:var(--muted);margin-bottom:4px}
+  .stat-value{font-size:22px;font-weight:700;font-family:'Syne',sans-serif}
+  .settlement-note{font-size:12px;color:var(--muted);margin-top:12px;padding-top:12px;border-top:1px solid var(--border);line-height:1.6}
 </style>
 </head>
 <body>
@@ -353,9 +371,47 @@
     </div>
   </div>
 
+
+  <!-- EXPENSES TAB -->
+  <div id="tabExpenses" class="tab-content" style="flex:1;display:none;flex-direction:column">
+    <div class="content" style="flex:1;padding-bottom:0">
+      <div style="display:flex;gap:10px;margin-bottom:16px">
+        <div class="stat-card">
+          <div class="stat-label">Total Spent</div>
+          <div class="stat-value" id="expTotal" style="color:var(--accent2)">₹0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Per Person</div>
+          <div class="stat-value" id="expPerPerson" style="color:var(--green)">₹0</div>
+        </div>
+      </div>
+
+      <div id="splitSummary" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--accent2);margin-bottom:12px;font-family:'Syne',sans-serif">Split Summary</div>
+        <div id="splitRows"></div>
+        <div class="settlement-note" id="settlementNote"></div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">All Expenses</div>
+      </div>
+      <div id="expenseItems">
+        <div class="empty-state"><div class="empty-icon">💸</div><p class="empty-text">No expenses yet.<br>Add the first one below!</p></div>
+      </div>
+    </div>
+    <div class="add-bar" style="flex-direction:column;gap:8px;padding:12px 16px">
+      <div style="display:flex;gap:8px;width:100%">
+        <input type="text" id="expLabel" placeholder="What was it for?" style="flex:2;margin:0" onkeydown="if(event.key==='Enter')document.getElementById('expAmount').focus()">
+        <input type="number" id="expAmount" placeholder="₹0" step="0.01" min="0" style="flex:1;margin:0;color:var(--accent2)" onkeydown="if(event.key==='Enter')addExpense()">
+        <button class="btn btn-primary btn-sm" onclick="addExpense()" style="flex-shrink:0">Add</button>
+      </div>
+    </div>
+  </div>
+
   <div class="tab-bar">
     <button class="tab active" onclick="switchTab('checklist',this)" id="tab-checklist"><span class="tab-icon">✅</span>Pack List</button>
     <button class="tab" onclick="switchTab('itinerary',this)" id="tab-itinerary"><span class="tab-icon">🗺️</span>Itinerary</button>
+    <button class="tab" onclick="switchTab('expenses',this)" id="tab-expenses"><span class="tab-icon">💸</span>Expenses</button>
     <button class="tab" onclick="switchTab('members',this)" id="tab-members"><span class="tab-icon">👥</span>Members</button>
   </div>
 </div>
@@ -723,6 +779,7 @@ window.openGroupApp = function() {
   checkNotifBanner();
   startLiveSync();
   renderMembers();
+  renderExpenses();
 };
 
 // LIVE SYNC
@@ -741,6 +798,7 @@ function startLiveSync() {
       renderChecklist();
       renderItinerary();
       renderMembers();
+      renderExpenses();
     },
     err => { setSynced(false); console.error(err); }
   );
@@ -940,6 +998,123 @@ function checkNotifBanner() {
   if(!messaging) return;
   if(Notification.permission==='default') document.getElementById('notifBanner').style.display='flex';
 }
+
+// EXPENSES
+function renderExpenses() {
+  if(!currentGroup) return;
+  const expenses = currentGroup.expenses || [];
+  const members  = currentGroup.members  || [];
+
+  // Totals
+  const total = expenses.reduce((s,e) => s + (parseFloat(e.amount)||0), 0);
+  const count = members.length || 1;
+  const perPerson = total / count;
+
+  document.getElementById('expTotal').textContent     = '₹' + total.toFixed(2);
+  document.getElementById('expPerPerson').textContent = '₹' + perPerson.toFixed(2);
+
+  // Expense list
+  const el = document.getElementById('expenseItems');
+  if(!expenses.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">💸</div><p class="empty-text">No expenses yet.<br>Add the first one below!</p></div>';
+  } else {
+    el.innerHTML = [...expenses].reverse().map(exp => `
+      <div class="expense-item">
+        <div class="expense-avatar">${initials(exp.by||'?')}</div>
+        <div class="expense-info">
+          <div class="expense-label">${exp.label}</div>
+          <div class="expense-meta">${exp.by} · ${exp.date||''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="expense-amount">₹${parseFloat(exp.amount).toFixed(2)}</div>
+          <button onclick="deleteExpense('${exp.id}')" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px;line-height:1;flex-shrink:0">×</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Split summary
+  const splitEl = document.getElementById('splitSummary');
+  if(!expenses.length || members.length < 2) { splitEl.style.display='none'; return; }
+  splitEl.style.display = 'block';
+
+  // Calculate paid per person
+  const paid = {};
+  members.forEach(m => { paid[m.phone] = { name:m.name, paid:0 }; });
+  expenses.forEach(exp => {
+    const m = members.find(m=>m.name===exp.by);
+    if(m && paid[m.phone] !== undefined) paid[m.phone].paid += parseFloat(exp.amount)||0;
+  });
+
+  // Balance = paid - fair share
+  const rows = Object.values(paid).map(p => ({
+    name: p.name,
+    paid: p.paid,
+    balance: parseFloat((p.paid - perPerson).toFixed(2))
+  }));
+
+  document.getElementById('splitRows').innerHTML = rows.map(r => `
+    <div class="split-row">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="expense-avatar" style="width:32px;height:32px;font-size:12px">${initials(r.name)}</div>
+        <div>
+          <div style="font-size:13px;font-weight:600">${r.name}</div>
+          <div style="font-size:11px;color:var(--muted)">paid ₹${r.paid.toFixed(2)}</div>
+        </div>
+      </div>
+      <div class="split-badge ${r.balance > 0.01 ? 'badge-gets' : r.balance < -0.01 ? 'badge-owes' : 'badge-even'}">
+        ${r.balance > 0.01 ? 'gets ₹'+r.balance.toFixed(2) : r.balance < -0.01 ? 'owes ₹'+Math.abs(r.balance).toFixed(2) : 'settled'}
+      </div>
+    </div>
+  `).join('');
+
+  // Settlement instructions — simplest debt algorithm
+  const creditors = rows.filter(r=>r.balance > 0.01).sort((a,b)=>b.balance-a.balance);
+  const debtors   = rows.filter(r=>r.balance < -0.01).sort((a,b)=>a.balance-b.balance);
+  const notes = [];
+  const creds = creditors.map(c=>({...c}));
+  const debts = debtors.map(d=>({...d}));
+  let ci=0, di=0;
+  while(ci<creds.length && di<debts.length) {
+    const amount = Math.min(creds[ci].balance, Math.abs(debts[di].balance));
+    if(amount > 0.01) notes.push(debts[di].name + ' pays ' + creds[ci].name + ' ₹' + amount.toFixed(2));
+    creds[ci].balance  -= amount;
+    debts[di].balance  += amount;
+    if(creds[ci].balance < 0.01) ci++;
+    if(Math.abs(debts[di].balance) < 0.01) di++;
+  }
+  document.getElementById('settlementNote').innerHTML = notes.length
+    ? '<strong>To settle up:</strong><br>' + notes.join('<br>')
+    : 'Everyone is settled up!';
+}
+
+window.addExpense = async function() {
+  const labelEl  = document.getElementById('expLabel');
+  const amountEl = document.getElementById('expAmount');
+  const label    = labelEl.value.trim();
+  const amount   = parseFloat(amountEl.value);
+  if(!label)          { showToastMsg('Enter what the expense was for'); return; }
+  if(!amount || amount <= 0) { showToastMsg('Enter a valid amount'); return; }
+
+  const now  = new Date();
+  const date = now.toLocaleDateString('en-IN', { day:'numeric', month:'short' });
+  const exp  = { id:generateId(), label, amount:parseFloat(amount.toFixed(2)), by:currentUser.name, date, addedAt:Date.now() };
+  const expenses = [...(currentGroup.expenses||[]), exp];
+
+  try {
+    await updateDoc(doc(db,'groups',currentGroup.id), { expenses });
+    labelEl.value=''; amountEl.value=''; labelEl.focus();
+    showToastMsg('₹'+amount.toFixed(2)+' added!');
+  } catch(e) { showToastMsg('Sync error'); console.error(e); }
+};
+
+window.deleteExpense = async function(id) {
+  const expenses = (currentGroup.expenses||[]).filter(e=>e.id!==id);
+  try {
+    await updateDoc(doc(db,'groups',currentGroup.id), { expenses });
+    showToastMsg('Expense removed');
+  } catch(e) { showToastMsg('Error'); }
+};
 
 // SHARE
 function getInviteLink() { return location.origin+location.pathname+'#join/'+currentGroup.id; }
