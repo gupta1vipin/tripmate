@@ -12,23 +12,18 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Handle background notifications
 messaging.onBackgroundMessage(function(payload) {
   const { title, body } = payload.notification || {};
   self.registration.showNotification(title || 'TripMate', {
-    body: body || 'Something was updated in your trip!',
+    body: body || 'Your trip was updated!',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     tag: 'tripmate-update',
-    renotify: true,
-    data: payload.data
+    renotify: true
   });
 });
 
-// Clicking notification opens the app
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  event.waitUntil(
-    clients.openWindow('/')
-  );
+  event.waitUntil(clients.openWindow('/'));
 });
