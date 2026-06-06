@@ -514,7 +514,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, collection, setDoc, getDoc, updateDoc, onSnapshot, arrayUnion, serverTimestamp, query, where, getDocs }
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, setDoc, getDoc, updateDoc, onSnapshot, arrayUnion, serverTimestamp, query, where, getDocs }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getMessaging, getToken, onMessage }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
@@ -530,7 +530,19 @@ const firebaseConfig = {
 const VAPID_KEY = "BCuobuL_odG2eCa9025e1MIDfoJ52mMwaNJdMTHyEG4Bu96YCAW3Ee6OpKPYmnVDskJVW2EYJxagQUxTQ3PkatQ";
 
 const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp);
+// Initialize Firestore with persistent cache (modern API — works great with PWA)
+// Caches data locally so reads/writes work offline and auto-sync when back online
+let db;
+try {
+  db = initializeFirestore(firebaseApp, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+  console.log('Firestore offline persistence enabled');
+} catch(e) {
+  // Fallback to regular Firestore if persistence fails
+  db = getFirestore(firebaseApp);
+  console.log('Falling back to online-only Firestore:', e);
+}
 let messaging = null;
 try { messaging = getMessaging(firebaseApp); } catch(e) {}
 
@@ -644,6 +656,19 @@ async function loadHomeScreen() {
     showScreen('joinGroup');
     return;
   }
+  // Restore last open group on refresh
+  const lastGroupId = localStorage.getItem('tripmate_current_group');
+  if(lastGroupId) {
+    try {
+      const snap = await getDoc(doc(db,'groups',lastGroupId));
+      if(snap.exists()) {
+        currentGroup = { ...snap.data(), id: lastGroupId };
+        window.openGroupApp();
+        return;
+      }
+    } catch(e) { console.log('Restore failed:', e); }
+    localStorage.removeItem('tripmate_current_group');
+  }
   showScreen('splash');
   renderGroupsList();
 }
@@ -662,6 +687,7 @@ async function loadHomeScreen() {
 // NAVIGATION
 window.goBack = function(to) {
   if(unsubscribe) { unsubscribe(); unsubscribe = null; }
+  if(to === 'splash') localStorage.removeItem('tripmate_current_group');
   showScreen(to);
   if(to === 'splash') renderGroupsList();
 };
@@ -802,6 +828,7 @@ window.joinGroup = async function() {
 // OPEN GROUP APP
 window.openGroupApp = function() {
   closeModal('inviteModal');
+  localStorage.setItem('tripmate_current_group', currentGroup.id);
   document.getElementById('appGroupName').textContent  = currentGroup.name;
   document.getElementById('appAvatar').textContent     = initials(currentUser.name);
   document.getElementById('itinGroupName').textContent = currentGroup.name;
@@ -819,8 +846,15 @@ window.openGroupApp = function() {
 // LIVE SYNC
 function setSynced(ok) {
   const d = document.getElementById('syncDot');
-  if(d) d.className = 'sync-dot' + (ok?'':' offline');
+  if(d) {
+    d.className = 'sync-dot' + (ok?'':' offline');
+    d.title = ok ? 'Live - synced' : 'Offline - changes will sync when back online';
+  }
 }
+
+// Listen for online/offline events
+window.addEventListener('online',  () => { setSynced(true);  showToastMsg('Back online! Syncing...'); });
+window.addEventListener('offline', () => { setSynced(false); showToastMsg('Offline - changes saved locally'); });
 function startLiveSync() {
   if(unsubscribe) unsubscribe();
   setSynced(false);
